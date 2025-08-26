@@ -179,8 +179,6 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(sessionStorage.getItem('gameHubAccess')==='granted'){document.getElementById('loginScreen').style.display='none';document.getElementById('gameContainer').style.display='block';}
   document.getElementById('passwordInput').addEventListener('keypress',e=>{if(e.key==='Enter')checkPassword();});
 });
-
-    <script>
         // Game state
         let currentGame = null;
         let currentPlayer = 1;
@@ -195,6 +193,7 @@ document.addEventListener('DOMContentLoaded',()=>{
             updateGlobalScores();
             updatePlayerNames();
         });
+      
 
         // Player name updates
         document.getElementById('player1Name').addEventListener('input', updatePlayerNames);
