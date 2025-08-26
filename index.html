@@ -1,0 +1,1728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Two Player Games Hub</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 75%, #f5f7fa 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: white;
+            padding: 20px 40px;
+            border-radius: 25px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #4a5568;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            font-weight: 700;
+        }
+
+        .players-setup {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .player-input {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .player-input label {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+
+        .player-input input {
+            padding: 10px;
+            border: 2px solid #a0aec0;
+            border-radius: 8px;
+            font-family: inherit;
+            text-align: center;
+            background: #fff;
+            font-weight: 500;
+        }
+
+        .global-score {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            font-size: 1.2em;
+            color: #2d3748;
+            font-weight: 600;
+        }
+
+        .score-item {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            max-width: 1200px;
+            margin-bottom: 30px;
+        }
+
+        .game-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .game-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+        }
+
+        .game-card h3 {
+            color: #2d3748;
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .game-card p {
+            color: #666;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+        }
+
+        .play-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .play-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .game-area {
+            display: none;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .back-button {
+            background: #4a5568;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 500;
+        }
+
+        .current-player {
+            font-size: 1.2em;
+            color: #2d3748;
+            font-weight: 600;
+        }
+
+        .history-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+            max-height: 300px;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        /* Game-specific styles */
+        .connect4-board {
+            display: grid;
+            grid-template-columns: repeat(7, 60px);
+            gap: 5px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .connect4-cell {
+            width: 60px;
+            height: 60px;
+            border: 3px solid #4a5568;
+            border-radius: 50%;
+            background: #f7fafc;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .connect4-cell.red {
+            background: #667eea;
+        }
+
+        .connect4-cell.yellow {
+            background: #f093fb;
+        }
+
+        .tic-tac-toe-board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            gap: 5px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .tic-tac-toe-cell {
+            width: 100px;
+            height: 100px;
+            border: 3px solid #4a5568;
+            background: white;
+            font-size: 2em;
+            font-weight: 700;
+            color: #2d3748;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .tic-tac-toe-cell:hover {
+            background: #f7fafc;
+        }
+
+        .word-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #a0aec0;
+            border-radius: 8px;
+            font-size: 1.2em;
+            text-align: center;
+            margin: 10px 0;
+            font-family: inherit;
+            font-weight: 500;
+        }
+
+        .submit-button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1.1em;
+        }
+
+        .game-info {
+            background: #f8f8f8;
+            padding: 15px;
+            border-radius: 15px;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .number-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 80px);
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .number-button {
+            width: 80px;
+            height: 80px;
+            border: 2px solid #4a5568;
+            background: white;
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #2d3748;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .number-button:hover {
+            background: #f7fafc;
+            transform: scale(1.05);
+        }
+
+        .number-button.selected {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .dice {
+            font-size: 4em;
+            text-align: center;
+            margin: 20px 0;
+            color: #4a5568;
+        }
+
+        .roll-button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1.2em;
+            margin: 10px;
+        }
+
+        .math-problem {
+            font-size: 2em;
+            text-align: center;
+            color: #2d3748;
+            margin: 20px 0;
+            font-weight: 600;
+        }
+
+        .drawing-canvas {
+            border: 3px solid #4a5568;
+            border-radius: 8px;
+            cursor: crosshair;
+            display: block;
+            margin: 20px auto;
+        }
+
+        .color-palette {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .color-button {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #ccc;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .color-button:hover {
+            transform: scale(1.1);
+        }
+
+        .color-button.active {
+            border-color: #333;
+            transform: scale(1.2);
+        }
+
+        .timer {
+            font-size: 2em;
+            text-align: center;
+            color: #4a5568;
+            font-weight: 600;
+            margin: 15px 0;
+        }
+
+        .sequence-display {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .sequence-item {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            font-size: 1.2em;
+        }
+
+        .messages-panel {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+            margin-top: 20px;
+            max-height: 250px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .messages-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .messages-header h4 {
+            color: #ff6b9d;
+            margin: 0;
+        }
+
+        .clear-messages {
+            background: #ff6b9d;
+            color: white;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.9em;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            border: 2px solid #f0f0f0;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 10px;
+            max-height: 150px;
+            background: #fafafa;
+        }
+
+        .message {
+            margin-bottom: 8px;
+            padding: 8px 12px;
+            border-radius: 15px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+
+        .message.elena {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            margin-left: 0;
+            margin-right: auto;
+            color: white;
+        }
+
+        .message.bryan {
+            background: linear-gradient(135deg, #f093fb, #f5f7fa);
+            margin-left: auto;
+            margin-right: 0;
+            color: #2d3748;
+        }
+
+        .message-sender {
+            font-weight: bold;
+            font-size: 0.8em;
+            margin-bottom: 3px;
+        }
+
+        .message-text {
+            font-size: 0.9em;
+        }
+
+        .message-input-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 2px solid #a0aec0;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9em;
+            outline: none;
+        }
+
+        .send-message {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 600;
+        }
+
+        .send-message:hover {
+            transform: scale(1.05);
+        }
+            .games-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .players-setup {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .global-score {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Game Hub 💀</h1>
+        <div class="players-setup">
+            <div class="player-input">
+                <label>Player 1:</label>
+                <input type="text" id="player1Name" placeholder="Enter name" value="Elena">
+            </div>
+            <div class="player-input">
+                <label>Player 2:</label>
+                <input type="text" id="player2Name" placeholder="Enter name" value="Bryan">
+            </div>
+        </div>
+        <div class="global-score">
+            <div class="score-item">
+                <span id="player1GlobalScore">Player 1: 0 wins</span>
+            </div>
+            <div class="score-item">
+                <span id="player2GlobalScore">Player 2: 0 wins</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="games-grid" id="gamesGrid">
+        <div class="game-card" onclick="startGame('connect4')">
+            <h3>🧌 Connect 4</h3>
+            <p>Classic strategy game - get four in a row!</p>
+            <button class="play-button">Play Now</button>
+        </div>
+
+        <div class="game-card" onclick="startGame('tictactoe')">
+            <h3>🧍‍♂️ Tic Tac Toe</h3>
+            <p>Quick classic game - three in a row wins!</p>
+            <button class="play-button">Play Now</button>
+        </div>
+
+        <div class="game-card" onclick="startGame('anagrams')">
+            <h3>🐛 Anagrams</h3>
+            <p>Find the longest word from scrambled letters!</p>
+            <button class="play-button">Play Now</button>
+        </div>
+
+        <div class="game-card" onclick="startGame('memory')">
+            <h3>💀 Memory Match</h3>
+            <p>Find matching pairs - best score wins!</p>
+            <button class="play-button">Play Now</button>
+        </div>
+
+        <div class="game-card" onclick="startGame('mathrace')">
+            <h3>🦧 Math Race</h3>
+            <p>Solve math problems faster than your opponent!</p>
+            <button class="play-button">Play Now</button>
+        </div>
+
+        <div class="game-card" onclick="startGame('drawguess')">
+            <h3>🧚 Draw & Guess</h3>
+            <p>Draw pictures and guess what they are!</p>
+            <button class="play-button">Play Now</button>
+        </div>
+
+        <div class="game-card" onclick="startGame('dicerace')">
+            <h3>🍱 Dice Race</h3>
+            <p>Roll dice and reach the target first!</p>
+            <button class="play-button">Play Now</button>
+        </div>
+
+        <div class="game-card" onclick="startGame('sequence')">
+            <h3>🧎‍♀️ Sequence Memory</h3>
+            <p>Remember and repeat color sequences!</p>
+            <button class="play-button">Play Now</button>
+        </div>
+
+        <div class="game-card" onclick="startGame('wordchain')">
+            <h3>🍵 Word Chain</h3>
+            <p>Create a chain of words - last letter starts next!</p>
+            <button class="play-button">Play Now</button>
+        </div>
+
+        <div class="game-card" onclick="startGame('quickdraw')">
+            <h3>😽 Quick Draw</h3>
+            <p>Draw the prompt as fast as possible!</p>
+            <button class="play-button">Play Now</button>
+        </div></button>
+        </div>
+
+        <div class="game-card" onclick="startGame('mathrace')">
+            <h3>🔢 Math Race</h3>
+            <p>Solve math problems faster than your opponent!</p>
+            <button class="play-button">Play Now</button>
+        </div>
+
+        <div class="game-card" onclick="startGame('drawguess')">
+            <h3>🎨 Draw & Guess</h3>
+            <p>Draw pictures and guess what they are!</p>
+            <button class="play-button">Play Now</button>
+        </div>
+
+        <div class="game-card" onclick="startGame('dicerace')">
+            <h3>🎲 Dice Race</h3>
+            <p>Roll dice and reach the target first!</p>
+            <button class="play-button">Play Now</button>
+        </div>
+
+        <div class="game-card" onclick="startGame('sequence')">
+            <h3>🌈 Sequence Memory</h3>
+            <p>Remember and repeat color sequences!</p>
+            <button class="play-button">Play Now</button>
+        </div>
+
+        <div class="game-card" onclick="startGame('wordchain')">
+            <h3>⛓️ Word Chain</h3>
+            <p>Create a chain of words - last letter starts next!</p>
+            <button class="play-button">Play Now</button>
+        </div>
+
+        <div class="game-card" onclick="startGame('quickdraw')">
+            <h3>⚡ Quick Draw</h3>
+            <p>Draw the prompt as fast as possible!</p>
+            <button class="play-button">Play Now</button>
+        </div>
+    </div>
+
+    <div class="game-area" id="gameArea">
+        <div class="game-header">
+            <button class="back-button" onclick="backToMenu()">← Back to Games</button>
+            <h2 id="gameTitle"></h2>
+            <div class="current-player" id="currentPlayer"></div>
+        </div>
+        <div id="gameContent"></div>
+    </div>
+
+    <div class="history-panel" id="historyPanel">
+        <h3>Game History</h3>
+        <div id="historyContent"></div>
+    </div>
+
+    <div class="messages-panel" id="messagesPanel">
+        <div class="messages-header">
+            <h4>💀 Game Chat</h4>
+            <button class="clear-messages" onclick="clearMessages()">Clear Chat</button>
+        </div>
+        <div class="messages-container" id="messagesContainer">
+            <div style="text-align: center; color: #999; font-style: italic;">No messages yet. Send a message to start chatting!</div>
+        </div>
+        <div class="message-input-container">
+            <input type="text" class="message-input" id="messageInput" placeholder="Type your message...">
+            <button class="send-message" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        // Game state
+        let currentGame = null;
+        let currentPlayer = 1;
+        let gameState = {};
+        let gameHistory = {};
+        let globalScores = { player1: 0, player2: 0 };
+        let gameMessages = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            updateGlobalScores();
+            updatePlayerNames();
+        });
+
+        // Player name updates
+        document.getElementById('player1Name').addEventListener('input', updatePlayerNames);
+        document.getElementById('player2Name').addEventListener('input', updatePlayerNames);
+
+        function updatePlayerNames() {
+            const player1 = document.getElementById('player1Name').value || 'Elena';
+            const player2 = document.getElementById('player2Name').value || 'Bryan';
+            
+            document.getElementById('player1GlobalScore').textContent = `${player1}: ${globalScores.player1} wins`;
+            document.getElementById('player2GlobalScore').textContent = `${player2}: ${globalScores.player2} wins`;
+            
+            if (currentGame) {
+                const currentPlayerName = currentPlayer === 1 ? player1 : player2;
+                document.getElementById('currentPlayer').textContent = `Current Player: ${currentPlayerName}`;
+            }
+        }
+
+        function startGame(gameType) {
+            currentGame = gameType;
+            currentPlayer = 1;
+            gameState = {};
+            gameMessages = []; // Clear messages when starting a new game
+            
+            document.getElementById('gamesGrid').style.display = 'none';
+            document.getElementById('gameArea').style.display = 'block';
+            document.getElementById('historyPanel').style.display = 'block';
+            document.getElementById('messagesPanel').style.display = 'flex';
+            
+            updatePlayerNames();
+            loadGameHistory(gameType);
+            clearMessages();
+            
+            const gameConfig = getGameConfig(gameType);
+            document.getElementById('gameTitle').textContent = gameConfig.title;
+            document.getElementById('gameContent').innerHTML = gameConfig.html;
+            
+            if (gameConfig.init) {
+                gameConfig.init();
+            }
+        }
+
+        function backToMenu() {
+            currentGame = null;
+            document.getElementById('gamesGrid').style.display = 'grid';
+            document.getElementById('gameArea').style.display = 'none';
+            document.getElementById('historyPanel').style.display = 'none';
+            document.getElementById('messagesPanel').style.display = 'none';
+        }
+
+        function switchPlayer() {
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            updatePlayerNames();
+        }
+
+        function recordWin(winner, score = null, gameSpecificData = null) {
+            if (!gameHistory[currentGame]) {
+                gameHistory[currentGame] = [];
+            }
+            
+            const player1Name = document.getElementById('player1Name').value || 'Elena';
+            const player2Name = document.getElementById('player2Name').value || 'Bryan';
+            const winnerName = winner === 1 ? player1Name : player2Name;
+            
+            const gameRecord = {
+                winner: winnerName,
+                date: new Date().toLocaleDateString(),
+                time: new Date().toLocaleTimeString(),
+                score: score,
+                ...gameSpecificData
+            };
+            
+            gameHistory[currentGame].unshift(gameRecord);
+            
+            // Keep only top 10 for score-based games, or most recent 10
+            if (gameHistory[currentGame].length > 10) {
+                gameHistory[currentGame] = gameHistory[currentGame].slice(0, 10);
+            }
+            
+            globalScores[`player${winner}`]++;
+            updateGlobalScores();
+            loadGameHistory(currentGame);
+            saveData();
+        }
+
+        function updateGlobalScores() {
+            updatePlayerNames();
+        }
+
+        function loadGameHistory(gameType) {
+            const historyContent = document.getElementById('historyContent');
+            const history = gameHistory[gameType] || [];
+            
+            if (history.length === 0) {
+                historyContent.innerHTML = '<p style="text-align: center; color: #999;">No games played yet!</p>';
+                return;
+            }
+            
+            historyContent.innerHTML = history.map(record => {
+                let scoreText = record.score !== null ? ` - Score: ${record.score}` : '';
+                return `
+                    <div class="history-item">
+                        <span><strong>${record.winner}</strong> won${scoreText}</span>
+                        <span>${record.date} ${record.time}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function saveData() {
+            const data = {
+                gameHistory: gameHistory,
+                globalScores: globalScores,
+                player1Name: document.getElementById('player1Name').value,
+                player2Name: document.getElementById('player2Name').value,
+                gameMessages: gameMessages
+            };
+            // In a real implementation, this would save to a server
+            // For now, we'll use a simple object to maintain state during the session
+            window.gameData = data;
+        }
+
+        function loadData() {
+            if (window.gameData) {
+                const data = window.gameData;
+                gameHistory = data.gameHistory || {};
+                globalScores = data.globalScores || { player1: 0, player2: 0 };
+                gameMessages = data.gameMessages || [];
+                if (data.player1Name) document.getElementById('player1Name').value = data.player1Name;
+                if (data.player2Name) document.getElementById('player2Name').value = data.player2Name;
+            }
+        }
+
+        // Game configurations
+        function getGameConfig(gameType) {
+            const configs = {
+                connect4: {
+                    title: '🧌 Connect 4',
+                    html: '<div class="connect4-board" id="connect4Board"></div><div class="game-info">Click a column to drop your piece!</div>',
+                    init: initConnect4
+                },
+                tictactoe: {
+                    title: '🧍‍♂️ Tic Tac Toe',
+                    html: '<div class="tic-tac-toe-board" id="ticTacToeBoard"></div><div class="game-info">Click a square to place your mark!</div>',
+                    init: initTicTacToe
+                },
+                anagrams: {
+                    title: '🐛 Anagrams',
+                    html: `
+                        <div class="game-info">
+                            <h3>Letters: <span id="anagramLetters"></span></h3>
+                            <p>Player 1 goes first, then Player 2 tries to beat their score!</p>
+                        </div>
+                        <input type="text" class="word-input" id="anagramInput" placeholder="Enter your word">
+                        <div style="text-align: center;">
+                            <button class="submit-button" onclick="submitAnagram()">Submit Word</button>
+                        </div>
+                        <div id="anagramResult"></div>
+                    `,
+                    init: initAnagrams
+                },
+                memory: {
+                    title: '💀 Memory Match',
+                    html: '<div class="number-grid" id="memoryGrid"></div><div class="game-info">Find all the matching pairs!</div><div id="memoryScore">Moves: 0</div>',
+                    init: initMemory
+                },
+                mathrace: {
+                    title: '🦧 Math Race',
+                    html: `
+                        <div class="math-problem" id="mathProblem"></div>
+                        <input type="number" class="word-input" id="mathInput" placeholder="Enter answer">
+                        <div style="text-align: center;">
+                            <button class="submit-button" onclick="submitMath()">Submit Answer</button>
+                        </div>
+                        <div id="mathScore">Score: 0</div>
+                        <div class="timer" id="mathTimer">60</div>
+                    `,
+                    init: initMathRace
+                },
+                drawguess: {
+                    title: '🧚 Draw & Guess',
+                    html: `
+                        <div class="game-info">
+                            <h3>Draw: <span id="drawPrompt"></span></h3>
+                            <p>Player draws, other player guesses!</p>
+                        </div>
+                        <div class="color-palette">
+                            <div class="color-button active" style="background: black" onclick="selectColor('black')"></div>
+                            <div class="color-button" style="background: red" onclick="selectColor('red')"></div>
+                            <div class="color-button" style="background: blue" onclick="selectColor('blue')"></div>
+                            <div class="color-button" style="background: green" onclick="selectColor('green')"></div>
+                            <div class="color-button" style="background: yellow" onclick="selectColor('yellow')"></div>
+                        </div>
+                        <canvas id="drawCanvas" class="drawing-canvas" width="400" height="300"></canvas>
+                        <div style="text-align: center; margin-top: 15px;">
+                            <button class="submit-button" onclick="clearCanvas()">Clear</button>
+                            <button class="submit-button" onclick="nextDrawRound()">Next Round</button>
+                        </div>
+                    `,
+                    init: initDrawGuess
+                },
+                dicerace: {
+                    title: '🍱 Dice Race',
+                    html: `
+                        <div class="game-info">First to reach 50 wins!</div>
+                        <div class="dice" id="diceDisplay">🍱</div>
+                        <div style="text-align: center;">
+                            <button class="roll-button" onclick="rollDice()">Roll Dice</button>
+                        </div>
+                        <div id="diceScores" style="text-align: center; font-size: 1.5em; margin: 20px 0;"></div>
+                    `,
+                    init: initDiceRace
+                },
+                sequence: {
+                    title: '🧎‍♀️ Sequence Memory',
+                    html: `
+                        <div class="game-info">Watch the sequence, then repeat it!</div>
+                        <div class="sequence-display" id="sequenceDisplay"></div>
+                        <div class="number-grid" id="sequenceGrid"></div>
+                        <div id="sequenceScore">Round: 1</div>
+                        <div style="text-align: center; margin-top: 15px;">
+                            <button class="submit-button" onclick="startSequenceRound()">Start Round</button>
+                        </div>
+                    `,
+                    init: initSequence
+                },
+                wordchain: {
+                    title: '🍵 Word Chain',
+                    html: `
+                        <div class="game-info">
+                            <p>Create a word chain! Each word must start with the last letter of the previous word.</p>
+                            <div id="chainDisplay">Start with any word!</div>
+                        </div>
+                        <input type="text" class="word-input" id="chainInput" placeholder="Enter your word">
+                        <div style="text-align: center;">
+                            <button class="submit-button" onclick="submitChainWord()">Submit Word</button>
+                        </div>
+                        <div id="chainResult"></div>
+                    `,
+                    init: initWordChain
+                },
+                quickdraw: {
+                    title: '😽 Quick Draw',
+                    html: `
+                        <div class="game-info">
+                            <h3>Draw: <span id="quickDrawPrompt"></span></h3>
+                            <p>You have 30 seconds!</p>
+                        </div>
+                        <canvas id="quickDrawCanvas" class="drawing-canvas" width="400" height="300"></canvas>
+                        <div class="timer" id="quickDrawTimer">30</div>
+                        <div style="text-align: center; margin-top: 15px;">
+                            <button class="submit-button" onclick="startQuickDraw()">Start Drawing</button>
+                            <button class="submit-button" onclick="nextQuickDraw()">Next Player</button>
+                        </div>
+                    `,
+                    init: initQuickDraw
+                }
+            };
+            
+            return configs[gameType];
+        }
+
+        // Game implementations
+        function initConnect4() {
+            gameState.board = Array(6).fill().map(() => Array(7).fill(0));
+            gameState.currentPlayer = 1;
+            
+            const board = document.getElementById('connect4Board');
+            board.innerHTML = '';
+            
+            for (let row = 0; row < 6; row++) {
+                for (let col = 0; col < 7; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'connect4-cell';
+                    cell.onclick = () => dropPiece(col);
+                    board.appendChild(cell);
+                }
+            }
+        }
+
+        function dropPiece(col) {
+            for (let row = 5; row >= 0; row--) {
+                if (gameState.board[row][col] === 0) {
+                    gameState.board[row][col] = gameState.currentPlayer;
+                    updateConnect4Display();
+                    
+                    if (checkConnect4Win(row, col)) {
+                        setTimeout(() => {
+                            alert(`Player ${gameState.currentPlayer} wins!`);
+                            recordWin(gameState.currentPlayer);
+                        }, 100);
+                        return;
+                    }
+                    
+                    gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
+                    currentPlayer = gameState.currentPlayer;
+                    updatePlayerNames();
+                    break;
+                }
+            }
+        }
+
+        function updateConnect4Display() {
+            const cells = document.querySelectorAll('.connect4-cell');
+            for (let row = 0; row < 6; row++) {
+                for (let col = 0; col < 7; col++) {
+                    const cell = cells[row * 7 + col];
+                    const value = gameState.board[row][col];
+                    cell.className = 'connect4-cell';
+                    if (value === 1) cell.classList.add('red');
+                    if (value === 2) cell.classList.add('yellow');
+                }
+            }
+        }
+
+        function checkConnect4Win(row, col) {
+            const player = gameState.board[row][col];
+            const directions = [
+                [0, 1], [1, 0], [1, 1], [1, -1]
+            ];
+            
+            for (const [dx, dy] of directions) {
+                let count = 1;
+                
+                // Check positive direction
+                for (let i = 1; i < 4; i++) {
+                    const newRow = row + dx * i;
+                    const newCol = col + dy * i;
+                    if (newRow >= 0 && newRow < 6 && newCol >= 0 && newCol < 7 && 
+                        gameState.board[newRow][newCol] === player) {
+                        count++;
+                    } else {
+                        break;
+                    }
+                }
+                
+                // Check negative direction
+                for (let i = 1; i < 4; i++) {
+                    const newRow = row - dx * i;
+                    const newCol = col - dy * i;
+                    if (newRow >= 0 && newRow < 6 && newCol >= 0 && newCol < 7 && 
+                        gameState.board[newRow][newCol] === player) {
+                        count++;
+                    } else {
+                        break;
+                    }
+                }
+                
+                if (count >= 4) return true;
+            }
+            return false;
+        }
+
+        function initTicTacToe() {
+            gameState.board = Array(9).fill('');
+            gameState.currentPlayer = 1;
+            
+            const board = document.getElementById('ticTacToeBoard');
+            board.innerHTML = '';
+            
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'tic-tac-toe-cell';
+                cell.onclick = () => placeMark(i);
+                board.appendChild(cell);
+            }
+        }
+
+        function placeMark(index) {
+            if (gameState.board[index] !== '') return;
+            
+            gameState.board[index] = gameState.currentPlayer === 1 ? 'X' : 'O';
+            updateTicTacToeDisplay();
+            
+            if (checkTicTacToeWin()) {
+                setTimeout(() => {
+                    alert(`Player ${gameState.currentPlayer} wins!`);
+                    recordWin(gameState.currentPlayer);
+                }, 100);
+                return;
+            }
+            
+            if (gameState.board.every(cell => cell !== '')) {
+                setTimeout(() => {
+                    alert("It's a tie!");
+                }, 100);
+                return;
+            }
+            
+            gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
+            currentPlayer = gameState.currentPlayer;
+            updatePlayerNames();
+        }
+
+        function updateTicTacToeDisplay() {
+            const cells = document.querySelectorAll('.tic-tac-toe-cell');
+            cells.forEach((cell, index) => {
+                cell.textContent = gameState.board[index];
+            });
+        }
+
+        function checkTicTacToeWin() {
+            const winPatterns = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
+                [0, 4, 8], [2, 4, 6] // diagonals
+            ];
+            
+            const mark = gameState.currentPlayer === 1 ? 'X' : 'O';
+            return winPatterns.some(pattern => 
+                pattern.every(index => gameState.board[index] === mark)
+            );
+        }
+
+        function initAnagrams() {
+            const letters = ['COMPUTER', 'ELEPHANT', 'RAINBOW', 'KITCHEN', 'MOUNTAIN', 'FLOWERS', 'BICYCLE', 'HARMONY'];
+            gameState.currentLetters = letters[Math.floor(Math.random() * letters.length)];
+            gameState.player1Score = 0;
+            gameState.player2Score = 0;
+            gameState.turn = 1;
+            
+            document.getElementById('anagramLetters').textContent = gameState.currentLetters;
+            document.getElementById('anagramInput').value = '';
+            document.getElementById('anagramResult').innerHTML = '';
+        }
+
+        function submitAnagram() {
+            const word = document.getElementById('anagramInput').value.toLowerCase().trim();
+            const letters = gameState.currentLetters.toLowerCase();
+            
+            if (word.length < 3) {
+                alert('Word must be at least 3 letters long!');
+                return;
+            }
+            
+            // Check if word can be made from letters
+            const letterCount = {};
+            for (const letter of letters) {
+                letterCount[letter] = (letterCount[letter] || 0) + 1;
+            }
+            
+            for (const letter of word) {
+                if (!letterCount[letter] || letterCount[letter] === 0) {
+                    alert('Invalid word - uses letters not available!');
+                    return;
+                }
+                letterCount[letter]--;
+            }
+            
+            const score = word.length;
+            
+            if (gameState.turn === 1) {
+                gameState.player1Score = score;
+                gameState.turn = 2;
+                currentPlayer = 2;
+                updatePlayerNames();
+                document.getElementById('anagramResult').innerHTML = 
+                    `<p>Player 1 scored ${score} points with "${word.toUpperCase()}"</p><p>Player 2's turn!</p>`;
+                document.getElementById('anagramInput').value = '';
+            } else {
+                gameState.player2Score = score;
+                const winner = gameState.player1Score > gameState.player2Score ? 1 : 
+                               gameState.player2Score > gameState.player1Score ? 2 : 0;
+                
+                let resultText = `Player 2 scored ${score} points with "${word.toUpperCase()}"<br>`;
+                resultText += `Final Scores: Player 1: ${gameState.player1Score}, Player 2: ${gameState.player2Score}<br>`;
+                
+                if (winner === 0) {
+                    resultText += "It's a tie!";
+                } else {
+                    resultText += `Player ${winner} wins!`;
+                    recordWin(winner, winner === 1 ? gameState.player1Score : gameState.player2Score);
+                }
+                
+                document.getElementById('anagramResult').innerHTML = resultText;
+            }
+        }
+
+        function initMemory() {
+            const numbers = [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8];
+            gameState.cards = numbers.sort(() => Math.random() - 0.5);
+            gameState.flipped = [];
+            gameState.matched = [];
+            gameState.moves = 0;
+            gameState.player1Matches = 0;
+            gameState.player2Matches = 0;
+            
+            const grid = document.getElementById('memoryGrid');
+            grid.innerHTML = '';
+            
+            for (let i = 0; i < 16; i++) {
+                const card = document.createElement('div');
+                card.className = 'number-button';
+                card.textContent = '?';
+                card.onclick = () => flipCard(i);
+                grid.appendChild(card);
+            }
+            
+            updateMemoryScore();
+        }
+
+        function flipCard(index) {
+            if (gameState.flipped.length === 2 || gameState.flipped.includes(index) || 
+                gameState.matched.includes(index)) return;
+            
+            gameState.flipped.push(index);
+            const cards = document.querySelectorAll('#memoryGrid .number-button');
+            cards[index].textContent = gameState.cards[index];
+            cards[index].classList.add('selected');
+            
+            if (gameState.flipped.length === 2) {
+                gameState.moves++;
+                updateMemoryScore();
+                
+                setTimeout(() => {
+                    const [first, second] = gameState.flipped;
+                    
+                    if (gameState.cards[first] === gameState.cards[second]) {
+                        gameState.matched.push(first, second);
+                        if (currentPlayer === 1) {
+                            gameState.player1Matches++;
+                        } else {
+                            gameState.player2Matches++;
+                        }
+                        
+                        if (gameState.matched.length === 16) {
+                            const winner = gameState.player1Matches > gameState.player2Matches ? 1 :
+                                          gameState.player2Matches > gameState.player1Matches ? 2 : 0;
+                            
+                            setTimeout(() => {
+                                if (winner === 0) {
+                                    alert("It's a tie!");
+                                } else {
+                                    alert(`Player ${winner} wins with ${winner === 1 ? gameState.player1Matches : gameState.player2Matches} matches!`);
+                                    recordWin(winner, winner === 1 ? gameState.player1Matches : gameState.player2Matches);
+                                }
+                            }, 500);
+                        }
+                    } else {
+                        cards[first].textContent = '?';
+                        cards[second].textContent = '?';
+                        cards[first].classList.remove('selected');
+                        cards[second].classList.remove('selected');
+                        switchPlayer();
+                    }
+                    
+                    gameState.flipped = [];
+                }, 1000);
+            }
+        }
+
+        function updateMemoryScore() {
+            const player1Name = document.getElementById('player1Name').value || 'Elena';
+            const player2Name = document.getElementById('player2Name').value || 'Bryan';
+            document.getElementById('memoryScore').innerHTML = 
+                `Moves: ${gameState.moves} | ${player1Name}: ${gameState.player1Matches} | ${player2Name}: ${gameState.player2Matches}`;
+        }
+
+        function initMathRace() {
+            gameState.score = 0;
+            gameState.timeLeft = 60;
+            gameState.currentProblem = generateMathProblem();
+            gameState.gameActive = true;
+            
+            displayMathProblem();
+            startMathTimer();
+        }
+
+        function generateMathProblem() {
+            const operations = ['+', '-', '*'];
+            const op = operations[Math.floor(Math.random() * operations.length)];
+            let a, b, answer;
+            
+            switch (op) {
+                case '+':
+                    a = Math.floor(Math.random() * 50) + 1;
+                    b = Math.floor(Math.random() * 50) + 1;
+                    answer = a + b;
+                    break;
+                case '-':
+                    a = Math.floor(Math.random() * 50) + 20;
+                    b = Math.floor(Math.random() * (a - 1)) + 1;
+                    answer = a - b;
+                    break;
+                case '*':
+                    a = Math.floor(Math.random() * 12) + 1;
+                    b = Math.floor(Math.random() * 12) + 1;
+                    answer = a * b;
+                    break;
+            }
+            
+            return { problem: `${a} ${op} ${b}`, answer };
+        }
+
+        function displayMathProblem() {
+            document.getElementById('mathProblem').textContent = `${gameState.currentProblem.problem} = ?`;
+            document.getElementById('mathInput').value = '';
+        }
+
+        function submitMath() {
+            if (!gameState.gameActive) return;
+            
+            const userAnswer = parseInt(document.getElementById('mathInput').value);
+            
+            if (userAnswer === gameState.currentProblem.answer) {
+                gameState.score++;
+                gameState.currentProblem = generateMathProblem();
+                displayMathProblem();
+                document.getElementById('mathScore').textContent = `Score: ${gameState.score}`;
+            } else {
+                alert('Incorrect! Try again.');
+                document.getElementById('mathInput').value = '';
+            }
+        }
+
+        function startMathTimer() {
+            const timer = setInterval(() => {
+                gameState.timeLeft--;
+                document.getElementById('mathTimer').textContent = gameState.timeLeft;
+                
+                if (gameState.timeLeft <= 0) {
+                    clearInterval(timer);
+                    gameState.gameActive = false;
+                    alert(`Time's up! Player ${currentPlayer} scored ${gameState.score} points!`);
+                    
+                    if (currentPlayer === 1) {
+                        gameState.player1FinalScore = gameState.score;
+                        currentPlayer = 2;
+                        switchPlayer();
+                        initMathRace(); // Start player 2's turn
+                    } else {
+                        const winner = gameState.player1FinalScore > gameState.score ? 1 :
+                                      gameState.score > gameState.player1FinalScore ? 2 : 0;
+                        
+                        setTimeout(() => {
+                            if (winner === 0) {
+                                alert("It's a tie!");
+                            } else {
+                                const winningScore = winner === 1 ? gameState.player1FinalScore : gameState.score;
+                                alert(`Player ${winner} wins with ${winningScore} points!`);
+                                recordWin(winner, winningScore);
+                            }
+                        }, 1000);
+                    }
+                }
+            }, 1000);
+        }
+
+        // Drawing games setup
+        let currentColor = 'black';
+        let isDrawing = false;
+
+        function initDrawGuess() {
+            const prompts = ['cat', 'house', 'car', 'tree', 'sun', 'flower', 'fish', 'bird', 'book', 'apple'];
+            gameState.currentPrompt = prompts[Math.floor(Math.random() * prompts.length)];
+            document.getElementById('drawPrompt').textContent = gameState.currentPrompt;
+            
+            const canvas = document.getElementById('drawCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            setupDrawing(canvas, ctx);
+        }
+
+        function setupDrawing(canvas, ctx) {
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+        }
+
+        function startDrawing(e) {
+            isDrawing = true;
+            const rect = e.target.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const ctx = e.target.getContext('2d');
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = e.target.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const ctx = e.target.getContext('2d');
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = currentColor;
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function selectColor(color) {
+            currentColor = color;
+            document.querySelectorAll('.color-button').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function clearCanvas() {
+            const canvas = document.getElementById('drawCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function nextDrawRound() {
+            switchPlayer();
+            initDrawGuess();
+        }
+
+        function initDiceRace() {
+            gameState.player1Score = 0;
+            gameState.player2Score = 0;
+            gameState.targetScore = 50;
+            updateDiceScores();
+        }
+
+        function rollDice() {
+            const roll = Math.floor(Math.random() * 6) + 1;
+            document.getElementById('diceDisplay').textContent = roll;
+            
+            if (currentPlayer === 1) {
+                gameState.player1Score += roll;
+            } else {
+                gameState.player2Score += roll;
+            }
+            
+            updateDiceScores();
+            
+            if (gameState.player1Score >= gameState.targetScore || gameState.player2Score >= gameState.targetScore) {
+                const winner = gameState.player1Score >= gameState.targetScore ? 1 : 2;
+                const winningScore = winner === 1 ? gameState.player1Score : gameState.player2Score;
+                
+                setTimeout(() => {
+                    alert(`Player ${winner} wins with ${winningScore} points!`);
+                    recordWin(winner, winningScore);
+                }, 500);
+            } else {
+                switchPlayer();
+            }
+        }
+
+        function updateDiceScores() {
+            const player1Name = document.getElementById('player1Name').value || 'Elena';
+            const player2Name = document.getElementById('player2Name').value || 'Bryan';
+            document.getElementById('diceScores').innerHTML = 
+                `${player1Name}: ${gameState.player1Score} | ${player2Name}: ${gameState.player2Score}`;
+        }
+
+        function initSequence() {
+            gameState.sequence = [];
+            gameState.playerSequence = [];
+            gameState.round = 1;
+            gameState.showingSequence = false;
+            
+            document.getElementById('sequenceScore').textContent = `Round: ${gameState.round}`;
+            
+            const grid = document.getElementById('sequenceGrid');
+            grid.innerHTML = '';
+            
+            const colors = ['#ff6b9d', '#7c4dff', '#00bcd4', '#4caf50'];
+            for (let i = 0; i < 4; i++) {
+                const button = document.createElement('div');
+                button.className = 'number-button';
+                button.style.backgroundColor = colors[i];
+                button.onclick = () => addToPlayerSequence(i);
+                grid.appendChild(button);
+            }
+        }
+
+        function startSequenceRound() {
+            gameState.sequence.push(Math.floor(Math.random() * 4));
+            gameState.playerSequence = [];
+            gameState.showingSequence = true;
+            
+            showSequence();
+        }
+
+        function showSequence() {
+            const colors = ['#ff6b9d', '#7c4dff', '#00bcd4', '#4caf50'];
+            const display = document.getElementById('sequenceDisplay');
+            display.innerHTML = '';
+            
+            gameState.sequence.forEach((colorIndex, index) => {
+                setTimeout(() => {
+                    const item = document.createElement('div');
+                    item.className = 'sequence-item';
+                    item.style.backgroundColor = colors[colorIndex];
+                    item.textContent = index + 1;
+                    display.appendChild(item);
+                    
+                    if (index === gameState.sequence.length - 1) {
+                        setTimeout(() => {
+                            gameState.showingSequence = false;
+                        }, 1000);
+                    }
+                }, index * 600);
+            });
+        }
+
+        function addToPlayerSequence(colorIndex) {
+            if (gameState.showingSequence) return;
+            
+            gameState.playerSequence.push(colorIndex);
+            
+            if (gameState.playerSequence[gameState.playerSequence.length - 1] !== 
+                gameState.sequence[gameState.playerSequence.length - 1]) {
+                alert(`Wrong sequence! Player ${currentPlayer} scored ${gameState.round - 1} points!`);
+                recordWin(currentPlayer, gameState.round - 1);
+                return;
+            }
+            
+            if (gameState.playerSequence.length === gameState.sequence.length) {
+                gameState.round++;
+                document.getElementById('sequenceScore').textContent = `Round: ${gameState.round}`;
+                
+                if (gameState.round > 10) {
+                    alert(`Amazing! Player ${currentPlayer} completed all 10 rounds!`);
+                    recordWin(currentPlayer, 10);
+                } else {
+                    setTimeout(() => startSequenceRound(), 1000);
+                }
+            }
+        }
+
+        function initWordChain() {
+            gameState.wordChain = [];
+            gameState.usedWords = new Set();
+            document.getElementById('chainDisplay').textContent = 'Start with any word!';
+            document.getElementById('chainInput').value = '';
+            document.getElementById('chainResult').innerHTML = '';
+        }
+
+        function submitChainWord() {
+            const word = document.getElementById('chainInput').value.toLowerCase().trim();
+            
+            if (word.length < 2) {
+                alert('Word must be at least 2 letters long!');
+                return;
+            }
+            
+            if (gameState.usedWords.has(word)) {
+                alert('Word already used!');
+                return;
+            }
+            
+            if (gameState.wordChain.length > 0) {
+                const lastWord = gameState.wordChain[gameState.wordChain.length - 1];
+                if (word[0] !== lastWord.slice(-1)) {
+                    alert(`Word must start with "${lastWord.slice(-1).toUpperCase()}"!`);
+                    return;
+                }
+            }
+            
+            gameState.wordChain.push(word);
+            gameState.usedWords.add(word);
+            
+            document.getElementById('chainDisplay').innerHTML = 
+                `<strong>Word Chain:</strong> ${gameState.wordChain.map(w => w.toUpperCase()).join(' → ')}`;
+            document.getElementById('chainInput').value = '';
+            
+            const nextLetter = word.slice(-1).toUpperCase();
+            document.getElementById('chainResult').innerHTML = 
+                `<p>Good! Next word must start with "${nextLetter}"</p>`;
+            
+            switchPlayer();
+        }
+
+        function initQuickDraw() {
+            const prompts = ['star', 'heart', 'circle', 'square', 'triangle', 'smiley face', 'arrow', 'lightning'];
+            gameState.currentPrompt = prompts[Math.floor(Math.random() * prompts.length)];
+            gameState.timeLeft = 30;
+            gameState.drawing = false;
+            
+            document.getElementById('quickDrawPrompt').textContent = gameState.currentPrompt;
+            document.getElementById('quickDrawTimer').textContent = gameState.timeLeft;
+            
+            const canvas = document.getElementById('quickDrawCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            setupQuickDrawing(canvas, ctx);
+        }
+
+        function setupQuickDrawing(canvas, ctx) {
+            canvas.addEventListener('mousedown', startQuickDrawing);
+            canvas.addEventListener('mousemove', quickDraw);
+            canvas.addEventListener('mouseup', stopQuickDrawing);
+            canvas.addEventListener('mouseout', stopQuickDrawing);
+        }
+
+        function startQuickDrawing(e) {
+            if (!gameState.drawing) return;
+            isDrawing = true;
+            const rect = e.target.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const ctx = e.target.getContext('2d');
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        function quickDraw(e) {
+            if (!isDrawing || !gameState.drawing) return;
+            const rect = e.target.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const ctx = e.target.getContext('2d');
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = 'black';
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        function stopQuickDrawing() {
+            isDrawing = false;
+        }
+
+        function startQuickDraw() {
+            gameState.drawing = true;
+            gameState.timeLeft = 30;
+            
+            const timer = setInterval(() => {
+                gameState.timeLeft--;
+                document.getElementById('quickDrawTimer').textContent = gameState.timeLeft;
+                
+                if (gameState.timeLeft <= 0) {
+                    clearInterval(timer);
+                    gameState.drawing = false;
+                    alert(`Time's up! Player ${currentPlayer} finished drawing "${gameState.currentPrompt}"!`);
+                }
+            }, 1000);
+        }
+
+        function nextQuickDraw() {
+            switchPlayer();
+            initQuickDraw();
+        }
+
+        // Messages functionality
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const messageText = input.value.trim();
+            
+            if (!messageText) return;
+            
+            const player1Name = document.getElementById('player1Name').value || 'Elena';
+            const player2Name = document.getElementById('player2Name').value || 'Bryan';
+            const currentPlayerName = currentPlayer === 1 ? player1Name : player2Name;
+            const playerClass = currentPlayerName.toLowerCase() === 'elena' ? 'elena' : 'bryan';
+            
+            const message = {
+                sender: currentPlayerName,
+                text: messageText,
+                timestamp: new Date().toLocaleTimeString(),
+                class: playerClass
+            };
+            
+            gameMessages.push(message);
+            input.value = '';
+            
+            displayMessages();
+            saveData();
+        }
+
+        function displayMessages() {
+            const container = document.getElementById('messagesContainer');
+            
+            if (gameMessages.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #999; font-style: italic;">No messages yet. Send a message to start chatting!</div>';
+                return;
+            }
+            
+            container.innerHTML = gameMessages.map(message => `
+                <div class="message ${message.class}">
+                    <div class="message-sender">${message.sender} • ${message.timestamp}</div>
+                    <div class="message-text">${message.text}</div>
+                </div>
+            `).join('');
+            
+            // Scroll to bottom
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function clearMessages() {
+            gameMessages = [];
+            displayMessages();
+            saveData();
+        }
+
+        // Add Enter key support for message input
+        document.addEventListener('DOMContentLoaded', function() {
+            const messageInput = document.getElementById('messageInput');
+            if (messageInput) {
+                messageInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        sendMessage();
+                    }
+                });
+            }
+        });
+        // Add Enter key support for game inputs
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                if (currentGame === 'anagrams' && document.getElementById('anagramInput') === document.activeElement) {
+                    submitAnagram();
+                } else if (currentGame === 'mathrace' && document.getElementById('mathInput') === document.activeElement) {
+                    submitMath();
+                } else if (currentGame === 'wordchain' && document.getElementById('chainInput') === document.activeElement) {
+                    submitChainWord();
+                } else if (document.getElementById('messageInput') === document.activeElement) {
+                    sendMessage();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
