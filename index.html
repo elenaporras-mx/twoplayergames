@@ -1,681 +1,184 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Two Player Games Hub</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 75%, #f5f7fa 100%);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            background: white;
-            padding: 20px 40px;
-            border-radius: 25px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
-        }
-
-        .header h1 {
-            color: #4a5568;
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-            font-weight: 700;
-        }
-
-        .players-setup {
-            display: flex;
-            gap: 20px;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .player-input {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .player-input label {
-            font-weight: 600;
-            color: #2d3748;
-            margin-bottom: 5px;
-        }
-
-        .player-input input {
-            padding: 10px;
-            border: 2px solid #a0aec0;
-            border-radius: 8px;
-            font-family: inherit;
-            text-align: center;
-            background: #fff;
-            font-weight: 500;
-        }
-
-        .global-score {
-            display: flex;
-            gap: 30px;
-            justify-content: center;
-            font-size: 1.2em;
-            color: #2d3748;
-            font-weight: 600;
-        }
-
-        .score-item {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 10px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            backdrop-filter: blur(10px);
-        }
-
-        .games-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 25px;
-            max-width: 1200px;
-            margin-bottom: 30px;
-        }
-
-        .game-card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 12px;
-            padding: 25px;
-            text-align: center;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            cursor: pointer;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .game-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
-        }
-
-        .game-card h3 {
-            color: #2d3748;
-            font-size: 1.5em;
-            margin-bottom: 10px;
-            font-weight: 600;
-        }
-
-        .game-card p {
-            color: #666;
-            margin-bottom: 15px;
-            font-size: 0.9em;
-        }
-
-        .play-button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 8px;
-            font-family: inherit;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .play-button:hover {
-            transform: scale(1.05);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-
-        .game-area {
-            display: none;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 12px;
-            padding: 30px;
-            max-width: 800px;
-            width: 100%;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .game-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .back-button {
-            background: #4a5568;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-family: inherit;
-            font-weight: 500;
-        }
-
-        .current-player {
-            font-size: 1.2em;
-            color: #2d3748;
-            font-weight: 600;
-        }
-
-        .history-panel {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 12px;
-            padding: 20px;
-            max-width: 800px;
-            width: 100%;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
-            max-height: 300px;
-            overflow-y: auto;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .history-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid #eee;
-        }
-
-        /* Game-specific styles */
-        .connect4-board {
-            display: grid;
-            grid-template-columns: repeat(7, 60px);
-            gap: 5px;
-            justify-content: center;
-            margin: 20px 0;
-        }
-
-        .connect4-cell {
-            width: 60px;
-            height: 60px;
-            border: 3px solid #4a5568;
-            border-radius: 50%;
-            background: #f7fafc;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .connect4-cell.red {
-            background: #667eea;
-        }
-
-        .connect4-cell.yellow {
-            background: #f093fb;
-        }
-
-        .tic-tac-toe-board {
-            display: grid;
-            grid-template-columns: repeat(3, 100px);
-            gap: 5px;
-            justify-content: center;
-            margin: 20px 0;
-        }
-
-        .tic-tac-toe-cell {
-            width: 100px;
-            height: 100px;
-            border: 3px solid #4a5568;
-            background: white;
-            font-size: 2em;
-            font-weight: 700;
-            color: #2d3748;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-        }
-
-        .tic-tac-toe-cell:hover {
-            background: #f7fafc;
-        }
-
-        .word-input {
-            width: 100%;
-            padding: 15px;
-            border: 2px solid #a0aec0;
-            border-radius: 8px;
-            font-size: 1.2em;
-            text-align: center;
-            margin: 10px 0;
-            font-family: inherit;
-            font-weight: 500;
-        }
-
-        .submit-button {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 8px;
-            font-family: inherit;
-            font-weight: 600;
-            cursor: pointer;
-            font-size: 1.1em;
-        }
-
-        .game-info {
-            background: #f8f8f8;
-            padding: 15px;
-            border-radius: 15px;
-            margin: 15px 0;
-            text-align: center;
-        }
-
-        .number-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 80px);
-            gap: 10px;
-            justify-content: center;
-            margin: 20px 0;
-        }
-
-        .number-button {
-            width: 80px;
-            height: 80px;
-            border: 2px solid #4a5568;
-            background: white;
-            font-size: 1.5em;
-            font-weight: 600;
-            color: #2d3748;
-            cursor: pointer;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-        }
-
-        .number-button:hover {
-            background: #f7fafc;
-            transform: scale(1.05);
-        }
-
-        .number-button.selected {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-        }
-
-        .dice {
-            font-size: 4em;
-            text-align: center;
-            margin: 20px 0;
-            color: #4a5568;
-        }
-
-        .roll-button {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            padding: 15px 40px;
-            border-radius: 8px;
-            font-family: inherit;
-            font-weight: 600;
-            cursor: pointer;
-            font-size: 1.2em;
-            margin: 10px;
-        }
-
-        .math-problem {
-            font-size: 2em;
-            text-align: center;
-            color: #2d3748;
-            margin: 20px 0;
-            font-weight: 600;
-        }
-
-        .drawing-canvas {
-            border: 3px solid #4a5568;
-            border-radius: 8px;
-            cursor: crosshair;
-            display: block;
-            margin: 20px auto;
-        }
-
-        .color-palette {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin: 15px 0;
-        }
-
-        .color-button {
-            width: 40px;
-            height: 40px;
-            border: 3px solid #ccc;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-
-        .color-button:hover {
-            transform: scale(1.1);
-        }
-
-        .color-button.active {
-            border-color: #333;
-            transform: scale(1.2);
-        }
-
-        .timer {
-            font-size: 2em;
-            text-align: center;
-            color: #4a5568;
-            font-weight: 600;
-            margin: 15px 0;
-        }
-
-        .sequence-display {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin: 20px 0;
-            flex-wrap: wrap;
-        }
-
-        .sequence-item {
-            width: 50px;
-            height: 50px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: white;
-            font-size: 1.2em;
-        }
-
-        .messages-panel {
-            background: white;
-            border-radius: 20px;
-            padding: 20px;
-            max-width: 800px;
-            width: 100%;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
-            margin-top: 20px;
-            max-height: 250px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .messages-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .messages-header h4 {
-            color: #ff6b9d;
-            margin: 0;
-        }
-
-        .clear-messages {
-            background: #ff6b9d;
-            color: white;
-            border: none;
-            padding: 5px 15px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-family: inherit;
-            font-size: 0.9em;
-        }
-
-        .messages-container {
-            flex: 1;
-            overflow-y: auto;
-            border: 2px solid #f0f0f0;
-            border-radius: 10px;
-            padding: 10px;
-            margin-bottom: 10px;
-            max-height: 150px;
-            background: #fafafa;
-        }
-
-        .message {
-            margin-bottom: 8px;
-            padding: 8px 12px;
-            border-radius: 15px;
-            max-width: 70%;
-            word-wrap: break-word;
-        }
-
-        .message.elena {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            margin-left: 0;
-            margin-right: auto;
-            color: white;
-        }
-
-        .message.bryan {
-            background: linear-gradient(135deg, #f093fb, #f5f7fa);
-            margin-left: auto;
-            margin-right: 0;
-            color: #2d3748;
-        }
-
-        .message-sender {
-            font-weight: bold;
-            font-size: 0.8em;
-            margin-bottom: 3px;
-        }
-
-        .message-text {
-            font-size: 0.9em;
-        }
-
-        .message-input-container {
-            display: flex;
-            gap: 10px;
-        }
-
-        .message-input {
-            flex: 1;
-            padding: 10px 15px;
-            border: 2px solid #a0aec0;
-            border-radius: 8px;
-            font-family: inherit;
-            font-size: 0.9em;
-            outline: none;
-        }
-
-        .send-message {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-family: inherit;
-            font-weight: 600;
-        }
-
-        .send-message:hover {
-            transform: scale(1.05);
-        }
-            .games-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .players-setup {
-                flex-direction: column;
-                gap: 10px;
-            }
-            
-            .global-score {
-                flex-direction: column;
-                gap: 10px;
-            }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Two Player Games Hub</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 75%, #f5f7fa 100%);
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; padding: 20px;
+}
+/* LOGIN */
+.login-container {
+  background: rgba(255,255,255,0.95); border-radius: 20px;
+  padding: 40px; box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+  text-align: center; max-width: 400px; width: 100%;
+}
+.login-input, .login-button {
+  width: 100%; padding: 15px; margin-bottom: 15px; border-radius: 10px;
+  font-size: 1.1em; font-family: inherit;
+}
+.login-input { border: 2px solid #a0aec0; text-align: center; }
+.login-button {
+  background: linear-gradient(135deg,#667eea,#764ba2);
+  color: white; border: none; font-weight: bold; cursor: pointer;
+}
+.error-message { color: red; font-weight: bold; }
+.game-container { display: none; width: 100%; }
+/* HUB STYLES */
+.header {
+  text-align: center; margin-bottom: 30px; background: white;
+  padding: 20px 40px; border-radius: 25px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+}
+.header h1 { color: #4a5568; font-size: 2.5em; font-weight: 700; }
+.players-setup { display: flex; gap: 20px; align-items: center; margin-bottom: 20px; }
+.player-input { display: flex; flex-direction: column; align-items: center; }
+.player-input input { padding: 10px; border: 2px solid #a0aec0; border-radius: 8px; text-align: center; }
+.global-score { display: flex; gap: 30px; justify-content: center; font-weight: 600; }
+.score-item { background: rgba(255,255,255,0.9); padding: 10px 20px; border-radius: 8px; }
+.games-grid {
+  display: grid; grid-template-columns: repeat(auto-fit,minmax(300px,1fr));
+  gap: 25px; max-width: 1200px; margin-bottom: 30px;
+}
+.game-card {
+  background: rgba(255,255,255,0.95); border-radius: 12px; padding: 25px;
+  text-align: center; box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease; cursor: pointer;
+}
+.game-card:hover { transform: translateY(-5px); }
+.play-button {
+  background: linear-gradient(135deg,#667eea,#764ba2);
+  color: white; border: none; padding: 12px 25px; border-radius: 8px;
+}
+/* GAME AREA */
+.game-area {
+  display:none; background:rgba(255,255,255,0.95);
+  border-radius:12px; padding:30px; max-width:800px; width:100%; margin-bottom:20px;
+}
+.game-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+.back-button { background:#edf2f7; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; }
+.current-player { font-weight:700; }
+/* CONNECT 4 */
+.connect4-board { display:grid; grid-template-columns:repeat(7,60px); gap:5px; justify-content:center; margin:20px 0; }
+.connect4-cell { width:60px; height:60px; border:3px solid #4a5568; border-radius:50%; background:#f7fafc; cursor:pointer; }
+.connect4-cell.red { background:#667eea; } .connect4-cell.yellow { background:#f093fb; }
+/* TIC TAC TOE */
+.tictactoe-board { display:grid; grid-template-columns:repeat(3,100px); gap:5px; justify-content:center; margin:20px 0; }
+.tictactoe-cell { width:100px; height:100px; background:#fff; border:2px solid #4a5568; font-size:2.5em; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+.tictactoe-cell:hover { background:#edf2f7; }
+/* MEMORY */
+.memory-grid { display:grid; grid-template-columns:repeat(4,100px); gap:10px; justify-content:center; }
+.memory-card { width:100px; height:100px; background:#667eea; color:white; font-size:2em; display:flex; align-items:center; justify-content:center; border-radius:8px; cursor:pointer; }
+/* ANAGRAMS */
+.anagram-word { font-size:2em; font-weight:700; margin:20px 0; text-align:center; }
+.anagram-input { width:100%; padding:10px; margin-bottom:15px; border:2px solid #a0aec0; border-radius:8px; }
+/* MATH RACE */
+.math-question { font-size:1.5em; text-align:center; margin-bottom:15px; }
+.math-input { padding:10px; border:2px solid #a0aec0; border-radius:8px; width:100%; }
+/* DRAW & GUESS */
+.canvas-container { display:flex; flex-direction:column; align-items:center; }
+canvas { border:2px solid #4a5568; background:#fff; margin-bottom:10px; }
+.color-picker, .brush-size { margin:5px; }
+/* DICE RACE */
+.dice-display { font-size:3em; text-align:center; margin:20px 0; }
+/* SEQUENCE MEMORY */
+.sequence-display { display:flex; justify-content:center; margin-bottom:20px; }
+.sequence-button { width:80px; height:80px; margin:10px; border:none; border-radius:50%; cursor:pointer; }
+.sequence-button.red { background:#e53e3e; } .sequence-button.blue { background:#3182ce; }
+.sequence-button.green { background:#38a169; } .sequence-button.yellow { background:#d69e2e; }
+/* WORD CHAIN */
+.wordchain-display { font-size:1.2em; margin-bottom:15px; text-align:center; }
+.wordchain-input { width:100%; padding:10px; border:2px solid #a0aec0; border-radius:8px; }
+/* QUICK DRAW */
+.quickdraw-prompt { font-size:1.2em; margin-bottom:15px; text-align:center; }
+/* HISTORY + CHAT */
+.history-panel { background:white; border-radius:12px; padding:20px; margin-top:20px; }
+.messages-panel { background:white; border-radius:12px; padding:20px; margin-top:20px; }
+.messages-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.messages-container { max-height:200px; overflow-y:auto; border:1px solid #e2e8f0; padding:10px; margin-bottom:10px; }
+.message-input-container { display:flex; gap:10px; }
+.message-input { flex:1; padding:10px; border:2px solid #a0aec0; border-radius:8px; }
+.send-message { background:#667eea; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; }
+</style>
 </head>
 <body>
-    <div class="header">
-        <h1>Game Hub 💀</h1>
-        <div class="players-setup">
-            <div class="player-input">
-                <label>Player 1:</label>
-                <input type="text" id="player1Name" placeholder="Enter name" value="Elena">
-            </div>
-            <div class="player-input">
-                <label>Player 2:</label>
-                <input type="text" id="player2Name" placeholder="Enter name" value="Bryan">
-            </div>
-        </div>
-        <div class="global-score">
-            <div class="score-item">
-                <span id="player1GlobalScore">Player 1: 0 wins</span>
-            </div>
-            <div class="score-item">
-                <span id="player2GlobalScore">Player 2: 0 wins</span>
-            </div>
-        </div>
+
+<!-- LOGIN -->
+<div class="login-container" id="loginScreen">
+  <h2>Game Hub Access</h2>
+  <input type="password" class="login-input" id="passwordInput" placeholder="Enter password">
+  <button class="login-button" onclick="checkPassword()">Enter</button>
+  <div class="error-message" id="errorMessage"></div>
+</div>
+
+<!-- GAME HUB -->
+<div class="game-container" id="gameContainer">
+
+  <div class="header">
+    <h1>Game Hub 💀</h1>
+    <div class="players-setup">
+      <div class="player-input"><label>Player 1:</label><input type="text" id="player1Name" value="Elena"></div>
+      <div class="player-input"><label>Player 2:</label><input type="text" id="player2Name" value="Bryan"></div>
     </div>
-
-    <div class="games-grid" id="gamesGrid">
-        <div class="game-card" onclick="startGame('connect4')">
-            <h3>🧌 Connect 4</h3>
-            <p>Classic strategy game - get four in a row!</p>
-            <button class="play-button">Play Now</button>
-        </div>
-
-        <div class="game-card" onclick="startGame('tictactoe')">
-            <h3>🧍‍♂️ Tic Tac Toe</h3>
-            <p>Quick classic game - three in a row wins!</p>
-            <button class="play-button">Play Now</button>
-        </div>
-
-        <div class="game-card" onclick="startGame('anagrams')">
-            <h3>🐛 Anagrams</h3>
-            <p>Find the longest word from scrambled letters!</p>
-            <button class="play-button">Play Now</button>
-        </div>
-
-        <div class="game-card" onclick="startGame('memory')">
-            <h3>💀 Memory Match</h3>
-            <p>Find matching pairs - best score wins!</p>
-            <button class="play-button">Play Now</button>
-        </div>
-
-        <div class="game-card" onclick="startGame('mathrace')">
-            <h3>🦧 Math Race</h3>
-            <p>Solve math problems faster than your opponent!</p>
-            <button class="play-button">Play Now</button>
-        </div>
-
-        <div class="game-card" onclick="startGame('drawguess')">
-            <h3>🧚 Draw & Guess</h3>
-            <p>Draw pictures and guess what they are!</p>
-            <button class="play-button">Play Now</button>
-        </div>
-
-        <div class="game-card" onclick="startGame('dicerace')">
-            <h3>🍱 Dice Race</h3>
-            <p>Roll dice and reach the target first!</p>
-            <button class="play-button">Play Now</button>
-        </div>
-
-        <div class="game-card" onclick="startGame('sequence')">
-            <h3>🧎‍♀️ Sequence Memory</h3>
-            <p>Remember and repeat color sequences!</p>
-            <button class="play-button">Play Now</button>
-        </div>
-
-        <div class="game-card" onclick="startGame('wordchain')">
-            <h3>🍵 Word Chain</h3>
-            <p>Create a chain of words - last letter starts next!</p>
-            <button class="play-button">Play Now</button>
-        </div>
-
-        <div class="game-card" onclick="startGame('quickdraw')">
-            <h3>😽 Quick Draw</h3>
-            <p>Draw the prompt as fast as possible!</p>
-            <button class="play-button">Play Now</button>
-        </div></button>
-        </div>
-
-        <div class="game-card" onclick="startGame('mathrace')">
-            <h3>🔢 Math Race</h3>
-            <p>Solve math problems faster than your opponent!</p>
-            <button class="play-button">Play Now</button>
-        </div>
-
-        <div class="game-card" onclick="startGame('drawguess')">
-            <h3>🎨 Draw & Guess</h3>
-            <p>Draw pictures and guess what they are!</p>
-            <button class="play-button">Play Now</button>
-        </div>
-
-        <div class="game-card" onclick="startGame('dicerace')">
-            <h3>🎲 Dice Race</h3>
-            <p>Roll dice and reach the target first!</p>
-            <button class="play-button">Play Now</button>
-        </div>
-
-        <div class="game-card" onclick="startGame('sequence')">
-            <h3>🌈 Sequence Memory</h3>
-            <p>Remember and repeat color sequences!</p>
-            <button class="play-button">Play Now</button>
-        </div>
-
-        <div class="game-card" onclick="startGame('wordchain')">
-            <h3>⛓️ Word Chain</h3>
-            <p>Create a chain of words - last letter starts next!</p>
-            <button class="play-button">Play Now</button>
-        </div>
-
-        <div class="game-card" onclick="startGame('quickdraw')">
-            <h3>⚡ Quick Draw</h3>
-            <p>Draw the prompt as fast as possible!</p>
-            <button class="play-button">Play Now</button>
-        </div>
+    <div class="global-score">
+      <div class="score-item"><span id="player1GlobalScore">Player 1: 0 wins</span></div>
+      <div class="score-item"><span id="player2GlobalScore">Player 2: 0 wins</span></div>
     </div>
+  </div>
 
-    <div class="game-area" id="gameArea">
-        <div class="game-header">
-            <button class="back-button" onclick="backToMenu()">← Back to Games</button>
-            <h2 id="gameTitle"></h2>
-            <div class="current-player" id="currentPlayer"></div>
-        </div>
-        <div id="gameContent"></div>
-    </div>
+  <div class="games-grid" id="gamesGrid">
+    <div class="game-card" onclick="startGame('connect4')"><h3>🧌 Connect 4</h3><button class="play-button">Play Now</button></div>
+    <div class="game-card" onclick="startGame('tictactoe')"><h3>🧍‍♂️ Tic Tac Toe</h3><button class="play-button">Play Now</button></div>
+    <div class="game-card" onclick="startGame('anagrams')"><h3>🐛 Anagrams</h3><button class="play-button">Play Now</button></div>
+    <div class="game-card" onclick="startGame('memory')"><h3>💀 Memory Match</h3><button class="play-button">Play Now</button></div>
+    <div class="game-card" onclick="startGame('mathrace')"><h3>🦧 Math Race</h3><button class="play-button">Play Now</button></div>
+    <div class="game-card" onclick="startGame('drawguess')"><h3>🧚 Draw & Guess</h3><button class="play-button">Play Now</button></div>
+    <div class="game-card" onclick="startGame('dicerace')"><h3>🍱 Dice Race</h3><button class="play-button">Play Now</button></div>
+    <div class="game-card" onclick="startGame('sequence')"><h3>🧎‍♀️ Sequence Memory</h3><button class="play-button">Play Now</button></div>
+    <div class="game-card" onclick="startGame('wordchain')"><h3>🍵 Word Chain</h3><button class="play-button">Play Now</button></div>
+    <div class="game-card" onclick="startGame('quickdraw')"><h3>😽 Quick Draw</h3><button class="play-button">Play Now</button></div>
+  </div>
 
-    <div class="history-panel" id="historyPanel">
-        <h3>Game History</h3>
-        <div id="historyContent"></div>
+  <div class="game-area" id="gameArea">
+    <div class="game-header">
+      <button class="back-button" onclick="backToMenu()">← Back</button>
+      <h2 id="gameTitle"></h2>
+      <div class="current-player" id="currentPlayer"></div>
     </div>
+    <div id="gameContent"></div>
+  </div>
 
-    <div class="messages-panel" id="messagesPanel">
-        <div class="messages-header">
-            <h4>💀 Game Chat</h4>
-            <button class="clear-messages" onclick="clearMessages()">Clear Chat</button>
-        </div>
-        <div class="messages-container" id="messagesContainer">
-            <div style="text-align: center; color: #999; font-style: italic;">No messages yet. Send a message to start chatting!</div>
-        </div>
-        <div class="message-input-container">
-            <input type="text" class="message-input" id="messageInput" placeholder="Type your message...">
-            <button class="send-message" onclick="sendMessage()">Send</button>
-        </div>
-    </div>
+  <div class="history-panel" id="historyPanel"><h3>Game History</h3><div id="historyContent"></div></div>
+  <div class="messages-panel" id="messagesPanel">
+    <div class="messages-header"><h4>💀 Game Chat</h4><button class="clear-messages" onclick="clearMessages()">Clear Chat</button></div>
+    <div class="messages-container" id="messagesContainer"><div style="text-align:center;color:#999;">No messages yet.</div></div>
+    <div class="message-input-container"><input type="text" class="message-input" id="messageInput"><button class="send-message" onclick="sendMessage()">Send</button></div>
+  </div>
+
+</div><!-- end gameContainer -->
+
+<script>
+/* PASSWORD */
+const CORRECT_PASSWORD = "YourSecretPassword123"; // change me
+function checkPassword(){
+  if(document.getElementById('passwordInput').value===CORRECT_PASSWORD){
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('gameContainer').style.display='block';
+    sessionStorage.setItem('gameHubAccess','granted');
+  } else {
+    document.getElementById('errorMessage').textContent='Incorrect password!';
+    document.getElementById('passwordInput').value='';
+  }
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  if(sessionStorage.getItem('gameHubAccess')==='granted'){document.getElementById('loginScreen').style.display='none';document.getElementById('gameContainer').style.display='block';}
+  document.getElementById('passwordInput').addEventListener('keypress',e=>{if(e.key==='Enter')checkPassword();});
+});
 
     <script>
         // Game state
