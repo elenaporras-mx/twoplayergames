@@ -1252,7 +1252,19 @@ function clearMessages() {
 }
 
 // Event listeners
-document.getElementById('loginButton').addEventListener('click', checkPassword);
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('passwordInput').addEventListener('keypress', e => {
+    if(e.key==='Enter') checkPassword();
+  });
+  document.getElementById('loginButton').addEventListener('click', checkPassword);
+  document.getElementById('player1Name').addEventListener('input', updatePlayerNames);
+  document.getElementById('player2Name').addEventListener('input', updatePlayerNames);
+  loadData();
+  updateGlobalScores();
+  updatePlayerNames();
+});
+
+// General key press handlers for game inputs
 document.addEventListener('keypress', function(e) {
   if (e.key === 'Enter') {
     if (currentGame === 'anagrams' && document.getElementById('anagramInput') === document.activeElement) submitAnagram();
@@ -1262,11 +1274,31 @@ document.addEventListener('keypress', function(e) {
   }
 });
   
-board[row][col] === 0) {
+function initConnect4() {
+  gameState.board = Array(6).fill().map(() => Array(7).fill(0));
+  gameState.currentPlayer = 1;
+  const board = document.getElementById('connect4Board');
+  board.innerHTML = '';
+  for (let row = 0; row < 6; row++) {
+    for (let col = 0; col < 7; col++) {
+      const cell = document.createElement('div');
+      cell.className = 'connect4-cell';
+      cell.onclick = () => dropPiece(col);
+      board.appendChild(cell);
+    }
+  }
+}
+
+function dropPiece(col) {
+  for (let row = 5; row >= 0; row--) {
+    if (gameState.board[row][col] === 0) {
       gameState.board[row][col] = gameState.currentPlayer;
       updateConnect4Display();
       if (checkConnect4Win(row, col)) {
-        setTimeout(() => { alert(`PLAYER ${gameState.currentPlayer} VICTORY!`); recordWin(gameState.currentPlayer); }, 100);
+        setTimeout(() => { 
+          alert(`PLAYER ${gameState.currentPlayer} VICTORY!`); 
+          recordWin(gameState.currentPlayer); 
+        }, 100);
         return;
       }
       gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
