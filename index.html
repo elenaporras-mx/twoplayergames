@@ -639,7 +639,7 @@ body::before {
     ENTER AUTHORIZATION CODE
   </div>
   <input type="password" class="login-input" id="passwordInput" placeholder="PASSWORD">
-  <button class="login-button" onclick="checkPassword()">INITIALIZE</button>
+  <button class="login-button" id="loginButton">INITIALIZE</button>
   <div class="error-message" id="errorMessage"></div>
 </div>
 
@@ -1252,6 +1252,7 @@ function clearMessages() {
 }
 
 // Event listeners
+document.getElementById('loginButton').addEventListener('click', checkPassword);
 document.addEventListener('keypress', function(e) {
   if (e.key === 'Enter') {
     if (currentGame === 'anagrams' && document.getElementById('anagramInput') === document.activeElement) submitAnagram();
@@ -1260,6 +1261,7 @@ document.addEventListener('keypress', function(e) {
     else if (document.getElementById('messageInput') === document.activeElement) sendMessage();
   }
 });
+  
 board[row][col] === 0) {
       gameState.board[row][col] = gameState.currentPlayer;
       updateConnect4Display();
