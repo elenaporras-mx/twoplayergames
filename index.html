@@ -738,9 +738,12 @@ body::before {
 </div>
 
 <script>
-/* PASSWORD - FIXED VERSION */
+/* PASSWORD & TIMEOUT SYSTEM */
 const CORRECT_PASSWORD = "BandESittingInATree"; 
-let isLoggedIn = false; // Use simple variable instead of sessionStorage
+let isLoggedIn = false;
+let activityTimeout;
+let lastActivityTime = Date.now();
+const TIMEOUT_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds
 
 function checkPassword(){
   const inputPassword = document.getElementById('passwordInput').value;
@@ -749,14 +752,161 @@ function checkPassword(){
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('gameContainer').style.display='block';
     document.getElementById('errorMessage').textContent = '';
+    startActivityMonitor();
   } else {
     document.getElementById('errorMessage').textContent='ACCESS DENIED - INVALID CODE';
     document.getElementById('passwordInput').value='';
   }
 }
 
+function startActivityMonitor() {
+  lastActivityTime = Date.now();
+  resetActivityTimeout();
+  
+  // Track user activity
+  const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+  activityEvents.forEach(event => {
+    document.addEventListener(event, updateActivity, true);
+  });
+}
+
+function updateActivity() {
+  if (!isLoggedIn) return;
+  lastActivityTime = Date.now();
+  resetActivityTimeout();
+}
+
+function resetActivityTimeout() {
+  clearTimeout(activityTimeout);
+  activityTimeout = setTimeout(showTimeoutWarning, TIMEOUT_DURATION);
+}
+
+function showTimeoutWarning() {
+  if (!isLoggedIn) return;
+  
+  const warningDiv = document.createElement('div');
+  warningDiv.id = 'timeoutWarning';
+  warningDiv.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 17, 0, 0.98);
+    border: 4px solid #ff0040;
+    padding: 30px;
+    z-index: 10000;
+    text-align: center;
+    box-shadow: 0 0 30px #ff0040;
+    animation: pulse 1s infinite;
+  `;
+  
+  warningDiv.innerHTML = `
+    <h2 style="color: #ff0040; text-shadow: 0 0 15px #ff0040; margin-bottom: 20px; text-transform: uppercase;">
+      SESSION TIMEOUT WARNING
+    </h2>
+    <p style="color: #ffff00; text-shadow: 0 0 10px #ffff00; margin-bottom: 25px; font-size: 1.1em;">
+      ARE YOU STILL PLAYING?<br>
+      SESSION WILL TERMINATE IN 30 SECONDS
+    </p>
+    <button onclick="continueSession()" style="
+      background: #003300; color: #00ff00; border: 2px solid #00ff00;
+      padding: 12px 25px; margin: 0 10px; font-family: 'Orbitron', monospace;
+      font-weight: bold; text-transform: uppercase; cursor: pointer;
+      text-shadow: 0 0 5px #00ff00;
+    ">YES - CONTINUE</button>
+    <button onclick="endSession()" style="
+      background: #330000; color: #ff0000; border: 2px solid #ff0000;
+      padding: 12px 25px; margin: 0 10px; font-family: 'Orbitron', monospace;
+      font-weight: bold; text-transform: uppercase; cursor: pointer;
+      text-shadow: 0 0 5px #ff0000;
+    ">NO - LOGOUT</button>
+    <div id="timeoutCountdown" style="
+      color: #ff0040; font-size: 1.5em; font-weight: bold;
+      text-shadow: 0 0 10px #ff0040; margin-top: 20px;
+    ">30</div>
+  `;
+  
+  document.body.appendChild(warningDiv);
+  
+  // Start 30-second countdown
+  let countdown = 30;
+  const countdownInterval = setInterval(() => {
+    countdown--;
+    const countdownEl = document.getElementById('timeoutCountdown');
+    if (countdownEl) {
+      countdownEl.textContent = countdown;
+    }
+    
+    if (countdown <= 0) {
+      clearInterval(countdownInterval);
+      endSession();
+    }
+  }, 1000);
+  
+  // Store countdown interval for cleanup
+  warningDiv.countdownInterval = countdownInterval;
+}
+
+function continueSession() {
+  const warningDiv = document.getElementById('timeoutWarning');
+  if (warningDiv) {
+    if (warningDiv.countdownInterval) {
+      clearInterval(warningDiv.countdownInterval);
+    }
+    warningDiv.remove();
+  }
+  updateActivity();
+}
+
+function endSession() {
+  const warningDiv = document.getElementById('timeoutWarning');
+  if (warningDiv) {
+    if (warningDiv.countdownInterval) {
+      clearInterval(warningDiv.countdownInterval);
+    }
+    warningDiv.remove();
+  }
+  
+  clearTimeout(activityTimeout);
+  isLoggedIn = false;
+  
+  // Clear all game data
+  currentGame = null;
+  gameState = {};
+  gameMessages = [];
+  
+  // Reset UI
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('gameContainer').style.display = 'none';
+  document.getElementById('passwordInput').value = '';
+  
+  // Show logout message
+  const logoutDiv = document.createElement('div');
+  logoutDiv.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(51, 0, 0, 0.95);
+    border: 2px solid #ff0040;
+    padding: 15px;
+    color: #ff0040;
+    text-shadow: 0 0 10px #ff0040;
+    font-family: 'Orbitron', monospace;
+    font-weight: bold;
+    text-transform: uppercase;
+    z-index: 10000;
+  `;
+  logoutDiv.textContent = 'SESSION TERMINATED - INACTIVITY TIMEOUT';
+  document.body.appendChild(logoutDiv);
+  
+  setTimeout(() => {
+    if (logoutDiv.parentNode) {
+      logoutDiv.remove();
+    }
+  }, 5000);
+}
+
 document.addEventListener('DOMContentLoaded',()=>{
-  // Always start with login screen in artifacts
   document.getElementById('passwordInput').addEventListener('keypress',e=>{
     if(e.key==='Enter') checkPassword();
   });
