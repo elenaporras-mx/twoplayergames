@@ -745,7 +745,8 @@ let activityTimeout;
 let lastActivityTime = Date.now();
 const TIMEOUT_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds
 
-function checkPassword(){
+// Make sure checkPassword is in global scope
+window.checkPassword = function checkPassword(){
   const inputPassword = document.getElementById('passwordInput').value;
   console.log('Password entered:', inputPassword); // Debug line
   console.log('Expected password:', CORRECT_PASSWORD); // Debug line
@@ -769,6 +770,11 @@ function checkPassword(){
     document.getElementById('errorMessage').textContent='ACCESS DENIED - INVALID CODE';
     document.getElementById('passwordInput').value='';
   }
+}
+
+// Also add as regular function for compatibility
+function checkPassword(){
+  return window.checkPassword();
 }
 
 function startActivityMonitor() {
@@ -867,7 +873,8 @@ function showTimeoutWarning() {
   warningDiv.countdownInterval = countdownInterval;
 }
 
-function continueSession() {
+// Make timeout functions global too
+window.continueSession = function continueSession() {
   const warningDiv = document.getElementById('timeoutWarning');
   if (warningDiv) {
     if (warningDiv.countdownInterval) {
@@ -878,7 +885,7 @@ function continueSession() {
   updateActivity();
 }
 
-function endSession() {
+window.endSession = function endSession() {
   const warningDiv = document.getElementById('timeoutWarning');
   if (warningDiv) {
     if (warningDiv.countdownInterval) {
