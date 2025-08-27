@@ -743,7 +743,7 @@ let lastActivityTime = Date.now();
 const TIMEOUT_DURATION = 15 * 60 * 1000;
 
 // Global functions
-window.checkPassword = function() {
+function checkPassword() {
   const inputPassword = document.getElementById('passwordInput').value;
   if(inputPassword === CORRECT_PASSWORD){
     isLoggedIn = true;
@@ -756,6 +756,7 @@ window.checkPassword = function() {
     document.getElementById('passwordInput').value='';
   }
 }
+window.checkPassword = checkPassword;
 
 function startActivityMonitor() {
   lastActivityTime = Date.now();
