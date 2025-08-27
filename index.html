@@ -645,7 +645,6 @@ body::before {
 
 <!-- GAME HUB -->
 <div class="game-container" id="gameContainer">
-
   <div class="header">
     <h1>GAME HUB v1.0</h1>
     <div class="players-setup">
@@ -734,66 +733,35 @@ body::before {
       <button class="send-message" onclick="sendMessage()">TRANSMIT</button>
     </div>
   </div>
-
 </div>
 
 <script>
-/* PASSWORD & TIMEOUT SYSTEM */
-const CORRECT_PASSWORD = "BandESittingInATree"; 
+const CORRECT_PASSWORD = "BandESittingInATree";
 let isLoggedIn = false;
 let activityTimeout;
 let lastActivityTime = Date.now();
-const TIMEOUT_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds
+const TIMEOUT_DURATION = 15 * 60 * 1000;
 
-// Make sure checkPassword is in global scope
-window.checkPassword = function checkPassword(){
+// Global functions
+window.checkPassword = function() {
   const inputPassword = document.getElementById('passwordInput').value;
-  console.log('Password entered:', inputPassword); // Debug line
-  console.log('Expected password:', CORRECT_PASSWORD); // Debug line
-  
   if(inputPassword === CORRECT_PASSWORD){
-    console.log('Password correct, logging in...'); // Debug line
     isLoggedIn = true;
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('gameContainer').style.display='block';
     document.getElementById('errorMessage').textContent = '';
-    
-    // Try starting activity monitor in a try-catch to prevent errors from blocking login
-    try {
-      startActivityMonitor();
-    } catch(e) {
-      console.error('Error starting activity monitor:', e);
-      // Login should still work even if timeout feature fails
-    }
+    try { startActivityMonitor(); } catch(e) { console.error(e); }
   } else {
-    console.log('Password incorrect'); // Debug line
     document.getElementById('errorMessage').textContent='ACCESS DENIED - INVALID CODE';
     document.getElementById('passwordInput').value='';
   }
 }
 
-// Also add as regular function for compatibility
-function checkPassword(){
-  return window.checkPassword();
-}
-
 function startActivityMonitor() {
-  try {
-    lastActivityTime = Date.now();
-    resetActivityTimeout();
-    
-    // Track user activity
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-    activityEvents.forEach(event => {
-      try {
-        document.addEventListener(event, updateActivity, true);
-      } catch(e) {
-        console.error('Error adding event listener for', event, e);
-      }
-    });
-  } catch(e) {
-    console.error('Error in startActivityMonitor:', e);
-  }
+  lastActivityTime = Date.now();
+  resetActivityTimeout();
+  const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+  events.forEach(event => document.addEventListener(event, updateActivity, true));
 }
 
 function updateActivity() {
@@ -809,135 +777,68 @@ function resetActivityTimeout() {
 
 function showTimeoutWarning() {
   if (!isLoggedIn) return;
-  
   const warningDiv = document.createElement('div');
   warningDiv.id = 'timeoutWarning';
-  warningDiv.style.cssText = `
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(0, 17, 0, 0.98);
-    border: 4px solid #ff0040;
-    padding: 30px;
-    z-index: 10000;
-    text-align: center;
-    box-shadow: 0 0 30px #ff0040;
-    animation: pulse 1s infinite;
-  `;
-  
+  warningDiv.style.cssText = `position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+    background: rgba(0, 17, 0, 0.98); border: 4px solid #ff0040; padding: 30px; z-index: 10000; 
+    text-align: center; box-shadow: 0 0 30px #ff0040; animation: pulse 1s infinite;`;
   warningDiv.innerHTML = `
     <h2 style="color: #ff0040; text-shadow: 0 0 15px #ff0040; margin-bottom: 20px; text-transform: uppercase;">
-      SESSION TIMEOUT WARNING
-    </h2>
+      SESSION TIMEOUT WARNING</h2>
     <p style="color: #ffff00; text-shadow: 0 0 10px #ffff00; margin-bottom: 25px; font-size: 1.1em;">
-      ARE YOU STILL PLAYING?<br>
-      SESSION WILL TERMINATE IN 30 SECONDS
-    </p>
-    <button onclick="continueSession()" style="
-      background: #003300; color: #00ff00; border: 2px solid #00ff00;
-      padding: 12px 25px; margin: 0 10px; font-family: 'Orbitron', monospace;
-      font-weight: bold; text-transform: uppercase; cursor: pointer;
-      text-shadow: 0 0 5px #00ff00;
-    ">YES - CONTINUE</button>
-    <button onclick="endSession()" style="
-      background: #330000; color: #ff0000; border: 2px solid #ff0000;
-      padding: 12px 25px; margin: 0 10px; font-family: 'Orbitron', monospace;
-      font-weight: bold; text-transform: uppercase; cursor: pointer;
-      text-shadow: 0 0 5px #ff0000;
-    ">NO - LOGOUT</button>
-    <div id="timeoutCountdown" style="
-      color: #ff0040; font-size: 1.5em; font-weight: bold;
-      text-shadow: 0 0 10px #ff0040; margin-top: 20px;
-    ">30</div>
-  `;
-  
+      ARE YOU STILL PLAYING?<br>SESSION WILL TERMINATE IN 30 SECONDS</p>
+    <button onclick="continueSession()" style="background: #003300; color: #00ff00; border: 2px solid #00ff00;
+      padding: 12px 25px; margin: 0 10px; font-family: 'Orbitron', monospace; font-weight: bold; 
+      text-transform: uppercase; cursor: pointer; text-shadow: 0 0 5px #00ff00;">YES - CONTINUE</button>
+    <button onclick="endSession()" style="background: #330000; color: #ff0000; border: 2px solid #ff0000;
+      padding: 12px 25px; margin: 0 10px; font-family: 'Orbitron', monospace; font-weight: bold; 
+      text-transform: uppercase; cursor: pointer; text-shadow: 0 0 5px #ff0000;">NO - LOGOUT</button>
+    <div id="timeoutCountdown" style="color: #ff0040; font-size: 1.5em; font-weight: bold;
+      text-shadow: 0 0 10px #ff0040; margin-top: 20px;">30</div>`;
   document.body.appendChild(warningDiv);
   
-  // Start 30-second countdown
   let countdown = 30;
   const countdownInterval = setInterval(() => {
     countdown--;
     const countdownEl = document.getElementById('timeoutCountdown');
-    if (countdownEl) {
-      countdownEl.textContent = countdown;
-    }
-    
-    if (countdown <= 0) {
-      clearInterval(countdownInterval);
-      endSession();
-    }
+    if (countdownEl) countdownEl.textContent = countdown;
+    if (countdown <= 0) { clearInterval(countdownInterval); endSession(); }
   }, 1000);
-  
-  // Store countdown interval for cleanup
   warningDiv.countdownInterval = countdownInterval;
 }
 
-// Make timeout functions global too
-window.continueSession = function continueSession() {
+window.continueSession = function() {
   const warningDiv = document.getElementById('timeoutWarning');
   if (warningDiv) {
-    if (warningDiv.countdownInterval) {
-      clearInterval(warningDiv.countdownInterval);
-    }
+    if (warningDiv.countdownInterval) clearInterval(warningDiv.countdownInterval);
     warningDiv.remove();
   }
   updateActivity();
 }
 
-window.endSession = function endSession() {
+window.endSession = function() {
   const warningDiv = document.getElementById('timeoutWarning');
   if (warningDiv) {
-    if (warningDiv.countdownInterval) {
-      clearInterval(warningDiv.countdownInterval);
-    }
+    if (warningDiv.countdownInterval) clearInterval(warningDiv.countdownInterval);
     warningDiv.remove();
   }
-  
   clearTimeout(activityTimeout);
   isLoggedIn = false;
-  
-  // Clear all game data
   currentGame = null;
   gameState = {};
   gameMessages = [];
-  
-  // Reset UI
   document.getElementById('loginScreen').style.display = 'block';
   document.getElementById('gameContainer').style.display = 'none';
   document.getElementById('passwordInput').value = '';
   
-  // Show logout message
   const logoutDiv = document.createElement('div');
-  logoutDiv.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: rgba(51, 0, 0, 0.95);
-    border: 2px solid #ff0040;
-    padding: 15px;
-    color: #ff0040;
-    text-shadow: 0 0 10px #ff0040;
-    font-family: 'Orbitron', monospace;
-    font-weight: bold;
-    text-transform: uppercase;
-    z-index: 10000;
-  `;
+  logoutDiv.style.cssText = `position: fixed; top: 20px; right: 20px; background: rgba(51, 0, 0, 0.95);
+    border: 2px solid #ff0040; padding: 15px; color: #ff0040; text-shadow: 0 0 10px #ff0040;
+    font-family: 'Orbitron', monospace; font-weight: bold; text-transform: uppercase; z-index: 10000;`;
   logoutDiv.textContent = 'SESSION TERMINATED - INACTIVITY TIMEOUT';
   document.body.appendChild(logoutDiv);
-  
-  setTimeout(() => {
-    if (logoutDiv.parentNode) {
-      logoutDiv.remove();
-    }
-  }, 5000);
+  setTimeout(() => { if (logoutDiv.parentNode) logoutDiv.remove(); }, 5000);
 }
-
-document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('passwordInput').addEventListener('keypress',e=>{
-    if(e.key==='Enter') checkPassword();
-  });
-});
 
 // Game state
 let currentGame = null;
@@ -947,105 +848,991 @@ let gameHistory = {};
 let globalScores = { player1: 0, player2: 0 };
 let gameMessages = [];
 
-// Initialize
 document.addEventListener('DOMContentLoaded', function() {
-    loadData();
-    updateGlobalScores();
-    updatePlayerNames();
+  document.getElementById('passwordInput').addEventListener('keypress', e => {
+    if(e.key==='Enter') checkPassword();
+  });
+  document.getElementById('player1Name').addEventListener('input', updatePlayerNames);
+  document.getElementById('player2Name').addEventListener('input', updatePlayerNames);
+  loadData();
+  updateGlobalScores();
+  updatePlayerNames();
 });
 
-// Player name updates
-document.getElementById('player1Name').addEventListener('input', updatePlayerNames);
-document.getElementById('player2Name').addEventListener('input', updatePlayerNames);
-
 function updatePlayerNames() {
-    const player1 = (document.getElementById('player1Name').value || 'ELENA').toUpperCase();
-    const player2 = (document.getElementById('player2Name').value || 'BRYAN').toUpperCase();
-    
-    document.getElementById('player1GlobalScore').textContent = `${player1}: ${globalScores.player1} WINS`;
-    document.getElementById('player2GlobalScore').textContent = `${player2}: ${globalScores.player2} WINS`;
-    
-    if (currentGame) {
-        const currentPlayerName = currentPlayer === 1 ? player1 : player2;
-        document.getElementById('currentPlayer').textContent = `ACTIVE: ${currentPlayerName}`;
-    }
+  const player1 = (document.getElementById('player1Name').value || 'ELENA').toUpperCase();
+  const player2 = (document.getElementById('player2Name').value || 'BRYAN').toUpperCase();
+  document.getElementById('player1GlobalScore').textContent = `${player1}: ${globalScores.player1} WINS`;
+  document.getElementById('player2GlobalScore').textContent = `${player2}: ${globalScores.player2} WINS`;
+  if (currentGame) {
+    const currentPlayerName = currentPlayer === 1 ? player1 : player2;
+    document.getElementById('currentPlayer').textContent = `ACTIVE: ${currentPlayerName}`;
+  }
 }
 
 function startGame(gameType) {
-    currentGame = gameType;
-    currentPlayer = 1;
-    gameState = {};
-    gameMessages = [];
-    
-    document.getElementById('gamesGrid').style.display = 'none';
-    document.getElementById('gameArea').style.display = 'block';
-    document.getElementById('historyPanel').style.display = 'block';
-    document.getElementById('messagesPanel').style.display = 'block';
-    
-    updatePlayerNames();
-    loadGameHistory(gameType);
-    clearMessages();
-    
-    const gameConfig = getGameConfig(gameType);
-    document.getElementById('gameTitle').textContent = gameConfig.title;
-    document.getElementById('gameContent').innerHTML = gameConfig.html;
-    
-    if (gameConfig.init) {
-        gameConfig.init();
-    }
+  currentGame = gameType;
+  currentPlayer = 1;
+  gameState = {};
+  gameMessages = [];
+  document.getElementById('gamesGrid').style.display = 'none';
+  document.getElementById('gameArea').style.display = 'block';
+  document.getElementById('historyPanel').style.display = 'block';
+  document.getElementById('messagesPanel').style.display = 'block';
+  updatePlayerNames();
+  loadGameHistory(gameType);
+  clearMessages();
+  const gameConfig = getGameConfig(gameType);
+  document.getElementById('gameTitle').textContent = gameConfig.title;
+  document.getElementById('gameContent').innerHTML = gameConfig.html;
+  if (gameConfig.init) gameConfig.init();
 }
 
 function backToMenu() {
-    currentGame = null;
-    document.getElementById('gamesGrid').style.display = 'grid';
-    document.getElementById('gameArea').style.display = 'none';
-    document.getElementById('historyPanel').style.display = 'none';
-    document.getElementById('messagesPanel').style.display = 'none';
+  currentGame = null;
+  document.getElementById('gamesGrid').style.display = 'grid';
+  document.getElementById('gameArea').style.display = 'none';
+  document.getElementById('historyPanel').style.display = 'none';
+  document.getElementById('messagesPanel').style.display = 'none';
 }
 
 function switchPlayer() {
-    currentPlayer = currentPlayer === 1 ? 2 : 1;
-    updatePlayerNames();
+  currentPlayer = currentPlayer === 1 ? 2 : 1;
+  updatePlayerNames();
 }
 
 function recordWin(winner, score = null, gameSpecificData = null) {
-    if (!gameHistory[currentGame]) {
-        gameHistory[currentGame] = [];
-    }
-    
-    const player1Name = (document.getElementById('player1Name').value || 'ELENA').toUpperCase();
-    const player2Name = (document.getElementById('player2Name').value || 'BRYAN').toUpperCase();
-    const winnerName = winner === 1 ? player1Name : player2Name;
-    
-    const gameRecord = {
-        winner: winnerName,
-        date: new Date().toLocaleDateString(),
-        time: new Date().toLocaleTimeString(),
-        score: score,
-        ...gameSpecificData
-    };
-    
-    gameHistory[currentGame].unshift(gameRecord);
-    
-    if (gameHistory[currentGame].length > 10) {
-        gameHistory[currentGame] = gameHistory[currentGame].slice(0, 10);
-    }
-    
-    globalScores[`player${winner}`]++;
-    updateGlobalScores();
-    loadGameHistory(currentGame);
-    saveData();
+  if (!gameHistory[currentGame]) gameHistory[currentGame] = [];
+  const player1Name = (document.getElementById('player1Name').value || 'ELENA').toUpperCase();
+  const player2Name = (document.getElementById('player2Name').value || 'BRYAN').toUpperCase();
+  const winnerName = winner === 1 ? player1Name : player2Name;
+  const gameRecord = {
+    winner: winnerName, date: new Date().toLocaleDateString(), 
+    time: new Date().toLocaleTimeString(), score: score, ...gameSpecificData
+  };
+  gameHistory[currentGame].unshift(gameRecord);
+  if (gameHistory[currentGame].length > 10) {
+    gameHistory[currentGame] = gameHistory[currentGame].slice(0, 10);
+  }
+  globalScores[`player${winner}`]++;
+  updateGlobalScores();
+  loadGameHistory(currentGame);
+  saveData();
 }
 
-function updateGlobalScores() {
-    updatePlayerNames();
-}
+function updateGlobalScores() { updatePlayerNames(); }
 
 function loadGameHistory(gameType) {
-    const historyContent = document.getElementById('historyContent');
-    const history = gameHistory[gameType] || [];
-    
-    if (history.length === 0) {
-        historyContent.innerHTML = '<p style="text-align: center; color: #666; font-style: italic;">NO RECORDS FOUND</p>';
-        return;
+  const historyContent = document.getElementById('historyContent');
+  const history = gameHistory[gameType] || [];
+  if (history.length === 0) {
+    historyContent.innerHTML = '<p style="text-align: center; color: #666; font-style: italic;">NO RECORDS FOUND</p>';
+    return;
+  }
+  historyContent.innerHTML = history.map(record => {
+    let scoreText = record.score !== null ? ` - SCORE: ${record.score}` : '';
+    return `<div style="margin-bottom: 10px; padding: 8px; border-left: 3px solid #ffff00; background: rgba(255, 255, 0, 0.05); color: #00ff00;">
+      <div style="color: #ffff00; font-weight: bold; text-shadow: 0 0 5px #ffff00;">${record.winner} VICTORY${scoreText}</div>
+      <div style="color: #00ffff; font-size: 0.8em; text-shadow: 0 0 3px #00ffff;">${record.date} ${record.time}</div>
+    </div>`;
+  }).join('');
+}
+
+function saveData() {
+  window.gameData = { gameHistory, globalScores, 
+    player1Name: document.getElementById('player1Name').value,
+    player2Name: document.getElementById('player2Name').value, gameMessages };
+}
+
+function loadData() {
+  if (window.gameData) {
+    const data = window.gameData;
+    gameHistory = data.gameHistory || {};
+    globalScores = data.globalScores || { player1: 0, player2: 0 };
+    gameMessages = data.gameMessages || [];
+    if (data.player1Name) document.getElementById('player1Name').value = data.player1Name;
+    if (data.player2Name) document.getElementById('player2Name').value = data.player2Name;
+  }
+}
+
+function getGameConfig(gameType) {
+  const configs = {
+    connect4: { title: '█ CONNECT 4', 
+      html: '<div class="connect4-board" id="connect4Board"></div><div class="game-info">SELECT COLUMN TO DROP PIECE</div>',
+      init: initConnect4 },
+    tictactoe: { title: '█ TIC TAC TOE',
+      html: '<div class="tic-tac-toe-board" id="ticTacToeBoard"></div><div class="game-info">SELECT GRID POSITION</div>',
+      init: initTicTacToe },
+    anagrams: { title: '█ ANAGRAMS',
+      html: `<div class="game-info"><h3 style="color: #00ffff; text-shadow: 0 0 10px #00ffff;">LETTERS: <span id="anagramLetters"></span></h3>
+        <p>PLAYER 1 GOES FIRST, THEN PLAYER 2 ATTEMPTS TO BEAT SCORE</p></div>
+        <input type="text" class="word-input" id="anagramInput" placeholder="ENTER WORD">
+        <div style="text-align: center;"><button class="submit-button" onclick="submitAnagram()">SUBMIT</button></div>
+        <div id="anagramResult" style="text-align: center; color: #ffff00; text-shadow: 0 0 10px #ffff00; margin-top: 15px;"></div>`,
+      init: initAnagrams },
+    memory: { title: '█ MEMORY MATCH',
+      html: '<div class="number-grid" id="memoryGrid"></div><div class="game-info">LOCATE ALL MATCHING PAIRS</div><div id="memoryScore" style="text-align: center; color: #ffff00; text-shadow: 0 0 10px #ffff00;">MOVES: 0</div>',
+      init: initMemory },
+    mathrace: { title: '█ MATH RACE',
+      html: `<div class="math-problem" id="mathProblem" style="font-size: 2em; text-align: center; margin: 20px 0; color: #00ffff; text-shadow: 0 0 15px #00ffff;"></div>
+        <input type="number" class="math-input" id="mathInput" placeholder="ENTER ANSWER">
+        <div style="text-align: center;"><button class="submit-button" onclick="submitMath()">SUBMIT</button></div>
+        <div id="mathScore" style="text-align: center; color: #ffff00; text-shadow: 0 0 10px #ffff00; font-size: 1.2em;">SCORE: 0</div>
+        <div class="timer" id="mathTimer">60</div>`,
+      init: initMathRace },
+    drawguess: { title: '█ DRAW & GUESS',
+      html: `<div class="game-info"><h3 style="color: #00ffff; text-shadow: 0 0 10px #00ffff;">DRAW: <span id="drawPrompt"></span></h3>
+        <p>ONE PLAYER DRAWS, OTHER GUESSES</p></div>
+        <div class="color-palette">
+          <div class="color-button active" style="background: black" onclick="selectColor('black')"></div>
+          <div class="color-button" style="background: #ff0040" onclick="selectColor('#ff0040')"></div>
+          <div class="color-button" style="background: #00ffff" onclick="selectColor('#00ffff')"></div>
+          <div class="color-button" style="background: #00ff00" onclick="selectColor('#00ff00')"></div>
+          <div class="color-button" style="background: #ffff00" onclick="selectColor('#ffff00')"></div>
+        </div><canvas id="drawCanvas" class="drawing-canvas" width="400" height="300"></canvas>
+        <div style="text-align: center; margin-top: 15px;">
+          <button class="submit-button" onclick="clearCanvas()">CLEAR</button>
+          <button class="submit-button" onclick="nextDrawRound()">NEXT ROUND</button>
+        </div>`,
+      init: initDrawGuess },
+    dicerace: { title: '█ DICE RACE',
+      html: `<div class="game-info">FIRST TO REACH 50 POINTS WINS</div>
+        <div class="dice" id="diceDisplay">█</div>
+        <div style="text-align: center;"><button class="roll-button" onclick="rollDice()">ROLL DICE</button></div>
+        <div id="diceScores" style="text-align: center; font-size: 1.5em; margin: 20px 0; color: #ffff00; text-shadow: 0 0 15px #ffff00;"></div>`,
+      init: initDiceRace },
+    sequence: { title: '█ SEQUENCE MEMORY',
+      html: `<div class="game-info">WATCH SEQUENCE, THEN REPEAT</div>
+        <div class="sequence-display" id="sequenceDisplay" style="min-height: 40px; text-align: center; margin-bottom: 20px;"></div>
+        <div class="number-grid" id="sequenceGrid"></div>
+        <div id="sequenceScore" style="text-align: center; color: #ffff00; text-shadow: 0 0 10px #ffff00;">ROUND: 1</div>
+        <div style="text-align: center; margin-top: 15px;"><button class="submit-button" onclick="startSequenceRound()">START ROUND</button></div>`,
+      init: initSequence },
+    wordchain: { title: '█ WORD CHAIN',
+      html: `<div class="game-info"><p>CREATE WORD CHAIN - EACH WORD STARTS WITH LAST LETTER OF PREVIOUS</p>
+        <div id="chainDisplay" style="margin: 15px 0; color: #00ffff; text-shadow: 0 0 10px #00ffff;">START WITH ANY WORD</div></div>
+        <input type="text" class="wordchain-input" id="chainInput" placeholder="ENTER WORD">
+        <div style="text-align: center;"><button class="submit-button" onclick="submitChainWord()">SUBMIT</button></div>
+        <div id="chainResult" style="text-align: center; color: #ffff00; text-shadow: 0 0 10px #ffff00; margin-top: 15px;"></div>`,
+      init: initWordChain },
+    quickdraw: { title: '█ QUICK DRAW',
+      html: `<div class="game-info"><h3 style="color: #00ffff; text-shadow: 0 0 10px #00ffff;">DRAW: <span id="quickDrawPrompt"></span></h3>
+        <p>TIME LIMIT: 30 SECONDS</p></div>
+        <canvas id="quickDrawCanvas" class="drawing-canvas" width="400" height="300"></canvas>
+        <div class="timer" id="quickDrawTimer">30</div>
+        <div style="text-align: center; margin-top: 15px;">
+          <button class="submit-button" onclick="startQuickDraw()">START TIMER</button>
+          <button class="submit-button" onclick="nextQuickDraw()">NEXT PLAYER</button>
+        </div>`,
+      init: initQuickDraw }
+  };
+  return configs[gameType];
+}
+
+// Game implementations
+function initConnect4() {
+  gameState.board = Array(6).fill().map(() => Array(7).fill(0));
+  gameState.currentPlayer = 1;
+  const board = document.getElementById('connect4Board');
+  board.innerHTML = '';
+  for (let row = 0; row < 6; row++) {
+    for (let col = 0; col < 7; col++) {
+      const cell = document.createElement('div');
+      cell.className = 'connect4-cell';
+      cell.onclick = () => dropPiece(col);
+      board.appendChild(cell);
     }
+  }
+}
+
+function dropPiece(col) {
+  for (let row = 5; row >= 0; row--) {
+    if (gameState.player1Score >= gameState.targetScore || gameState.player2Score >= gameState.targetScore) {
+    const winner = gameState.player1Score >= gameState.targetScore ? 1 : 2;
+    const winningScore = winner === 1 ? gameState.player1Score : gameState.player2Score;
+    setTimeout(() => { alert(`PLAYER ${winner} VICTORY WITH ${winningScore} POINTS!`); recordWin(winner, winningScore); }, 500);
+  } else switchPlayer();
+}
+
+function updateDiceScores() {
+  const player1Name = (document.getElementById('player1Name').value || 'ELENA').toUpperCase();
+  const player2Name = (document.getElementById('player2Name').value || 'BRYAN').toUpperCase();
+  document.getElementById('diceScores').innerHTML = `${player1Name}: ${gameState.player1Score} | ${player2Name}: ${gameState.player2Score}`;
+}
+
+function initSequence() {
+  gameState.sequence = [];
+  gameState.playerSequence = [];
+  gameState.round = 1;
+  gameState.showingSequence = false;
+  document.getElementById('sequenceScore').textContent = `ROUND: ${gameState.round}`;
+  const grid = document.getElementById('sequenceGrid');
+  grid.innerHTML = '';
+  const colors = ['#ff0040', '#00ffff', '#00ff00', '#ffff00'];
+  for (let i = 0; i < 4; i++) {
+    const button = document.createElement('div');
+    button.className = 'number-button';
+    button.style.backgroundColor = colors[i];
+    button.onclick = () => addToPlayerSequence(i);
+    grid.appendChild(button);
+  }
+}
+
+function startSequenceRound() {
+  gameState.sequence.push(Math.floor(Math.random() * 4));
+  gameState.playerSequence = [];
+  gameState.showingSequence = true;
+  showSequence();
+}
+
+function showSequence() {
+  const colors = ['#ff0040', '#00ffff', '#00ff00', '#ffff00'];
+  const display = document.getElementById('sequenceDisplay');
+  display.innerHTML = '';
+  gameState.sequence.forEach((colorIndex, index) => {
+    setTimeout(() => {
+      const item = document.createElement('div');
+      item.style.cssText = `display: inline-block; width: 40px; height: 40px; margin: 5px; 
+        background: ${colors[colorIndex]}; border: 2px solid #00ff00; text-align: center; 
+        line-height: 36px; font-weight: bold; color: #000;`;
+      item.textContent = index + 1;
+      display.appendChild(item);
+      if (index === gameState.sequence.length - 1) {
+        setTimeout(() => { gameState.showingSequence = false; }, 1000);
+      }
+    }, index * 600);
+  });
+}
+
+function addToPlayerSequence(colorIndex) {
+  if (gameState.showingSequence) return;
+  gameState.playerSequence.push(colorIndex);
+  if (gameState.playerSequence[gameState.playerSequence.length - 1] !== gameState.sequence[gameState.playerSequence.length - 1]) {
+    alert(`SEQUENCE ERROR! PLAYER ${currentPlayer} SCORED ${gameState.round - 1} POINTS!`);
+    recordWin(currentPlayer, gameState.round - 1);
+    return;
+  }
+  if (gameState.playerSequence.length === gameState.sequence.length) {
+    gameState.round++;
+    document.getElementById('sequenceScore').textContent = `ROUND: ${gameState.round}`;
+    if (gameState.round > 10) {
+      alert(`MAXIMUM ROUNDS COMPLETED! PLAYER ${currentPlayer} ACHIEVED PERFECT SCORE!`);
+      recordWin(currentPlayer, 10);
+    } else setTimeout(() => startSequenceRound(), 1000);
+  }
+}
+
+function initWordChain() {
+  gameState.wordChain = [];
+  gameState.usedWords = new Set();
+  document.getElementById('chainDisplay').textContent = 'START WITH ANY WORD';
+  document.getElementById('chainInput').value = '';
+  document.getElementById('chainResult').innerHTML = '';
+}
+
+function submitChainWord() {
+  const word = document.getElementById('chainInput').value.toUpperCase().trim();
+  if (word.length < 2) { alert('MINIMUM 2 LETTERS REQUIRED'); return; }
+  if (gameState.usedWords.has(word)) { alert('WORD ALREADY USED'); return; }
+  if (gameState.wordChain.length > 0) {
+    const lastWord = gameState.wordChain[gameState.wordChain.length - 1];
+    if (word[0] !== lastWord.slice(-1)) { alert(`WORD MUST START WITH "${lastWord.slice(-1)}"`); return; }
+  }
+  gameState.wordChain.push(word);
+  gameState.usedWords.add(word);
+  document.getElementById('chainDisplay').innerHTML = `<strong>CHAIN:</strong> ${gameState.wordChain.join(' → ')}`;
+  document.getElementById('chainInput').value = '';
+  const nextLetter = word.slice(-1);
+  document.getElementById('chainResult').innerHTML = `<p>ACCEPTED! NEXT WORD MUST START WITH "${nextLetter}"</p>`;
+  switchPlayer();
+}
+
+function initQuickDraw() {
+  const prompts = ['STAR', 'HEART', 'CIRCLE', 'SQUARE', 'TRIANGLE', 'FACE', 'ARROW', 'LIGHTNING'];
+  gameState.currentPrompt = prompts[Math.floor(Math.random() * prompts.length)];
+  gameState.timeLeft = 30;
+  gameState.drawing = false;
+  document.getElementById('quickDrawPrompt').textContent = gameState.currentPrompt;
+  document.getElementById('quickDrawTimer').textContent = gameState.timeLeft;
+  const canvas = document.getElementById('quickDrawCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  setupQuickDrawing(canvas, ctx);
+}
+
+function setupQuickDrawing(canvas, ctx) {
+  canvas.addEventListener('mousedown', startQuickDrawing);
+  canvas.addEventListener('mousemove', quickDraw);
+  canvas.addEventListener('mouseup', stopQuickDrawing);
+  canvas.addEventListener('mouseout', stopQuickDrawing);
+}
+
+function startQuickDrawing(e) {
+  if (!gameState.drawing) return;
+  isDrawing = true;
+  const rect = e.target.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  const ctx = e.target.getContext('2d');
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+}
+
+function quickDraw(e) {
+  if (!isDrawing || !gameState.drawing) return;
+  const rect = e.target.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  const ctx = e.target.getContext('2d');
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#00ff00';
+  ctx.lineTo(x, y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+}
+
+function stopQuickDrawing() { isDrawing = false; }
+
+function startQuickDraw() {
+  gameState.drawing = true;
+  gameState.timeLeft = 30;
+  const timer = setInterval(() => {
+    gameState.timeLeft--;
+    document.getElementById('quickDrawTimer').textContent = gameState.timeLeft;
+    if (gameState.timeLeft <= 0) {
+      clearInterval(timer);
+      gameState.drawing = false;
+      alert(`TIME EXPIRED! PLAYER ${currentPlayer} COMPLETED DRAWING "${gameState.currentPrompt}"`);
+    }
+  }, 1000);
+}
+
+function nextQuickDraw() { switchPlayer(); initQuickDraw(); }
+
+// Messages functionality
+function sendMessage() {
+  const input = document.getElementById('messageInput');
+  const messageText = input.value.trim();
+  if (!messageText) return;
+  const player1Name = (document.getElementById('player1Name').value || 'ELENA').toUpperCase();
+  const player2Name = (document.getElementById('player2Name').value || 'BRYAN').toUpperCase();
+  const currentPlayerName = currentPlayer === 1 ? player1Name : player2Name;
+  const message = {
+    sender: currentPlayerName, text: messageText.toUpperCase(), 
+    timestamp: new Date().toLocaleTimeString(), class: currentPlayerName.toLowerCase()
+  };
+  gameMessages.push(message);
+  input.value = '';
+  displayMessages();
+  saveData();
+}
+
+function displayMessages() {
+  const container = document.getElementById('messagesContainer');
+  if (gameMessages.length === 0) {
+    container.innerHTML = '<div style="text-align: center; color: #666; font-style: italic;">AWAITING TRANSMISSION...</div>';
+    return;
+  }
+  container.innerHTML = gameMessages.map(message => `
+    <div class="message">
+      <div class="message-sender">${message.sender} • ${message.timestamp}</div>
+      <div class="message-text">${message.text}</div>
+    </div>
+  `).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function clearMessages() {
+  gameMessages = [];
+  displayMessages();
+  saveData();
+}
+
+// Event listeners
+document.addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') {
+    if (currentGame === 'anagrams' && document.getElementById('anagramInput') === document.activeElement) submitAnagram();
+    else if (currentGame === 'mathrace' && document.getElementById('mathInput') === document.activeElement) submitMath();
+    else if (currentGame === 'wordchain' && document.getElementById('chainInput') === document.activeElement) submitChainWord();
+    else if (document.getElementById('messageInput') === document.activeElement) sendMessage();
+  }
+});
+board[row][col] === 0) {
+      gameState.board[row][col] = gameState.currentPlayer;
+      updateConnect4Display();
+      if (checkConnect4Win(row, col)) {
+        setTimeout(() => { alert(`PLAYER ${gameState.currentPlayer} VICTORY!`); recordWin(gameState.currentPlayer); }, 100);
+        return;
+      }
+      gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
+      currentPlayer = gameState.currentPlayer;
+      updatePlayerNames();
+      break;
+    }
+  }
+}
+
+function updateConnect4Display() {
+  const cells = document.querySelectorAll('.connect4-cell');
+  for (let row = 0; row < 6; row++) {
+    for (let col = 0; col < 7; col++) {
+      const cell = cells[row * 7 + col];
+      const value = gameState.board[row][col];
+      cell.className = 'connect4-cell';
+      if (value === 1) cell.classList.add('red');
+      if (value === 2) cell.classList.add('yellow');
+    }
+  }
+}
+
+function checkConnect4Win(row, col) {
+  const player = gameState.board[row][col];
+  const directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
+  for (const [dx, dy] of directions) {
+    let count = 1;
+    for (let i = 1; i < 4; i++) {
+      const newRow = row + dx * i, newCol = col + dy * i;
+      if (newRow >= 0 && newRow < 6 && newCol >= 0 && newCol < 7 && gameState.board[newRow][newCol] === player) count++;
+      else break;
+    }
+    for (let i = 1; i < 4; i++) {
+      const newRow = row - dx * i, newCol = col - dy * i;
+      if (newRow >= 0 && newRow < 6 && newCol >= 0 && newCol < 7 && gameState.board[newRow][newCol] === player) count++;
+      else break;
+    }
+    if (count >= 4) return true;
+  }
+  return false;
+}
+
+function initTicTacToe() {
+  gameState.board = Array(9).fill('');
+  gameState.currentPlayer = 1;
+  const board = document.getElementById('ticTacToeBoard');
+  board.innerHTML = '';
+  for (let i = 0; i < 9; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'tic-tac-toe-cell';
+    cell.onclick = () => placeMark(i);
+    board.appendChild(cell);
+  }
+}
+
+function placeMark(index) {
+  if (gameState.board[index] !== '') return;
+  gameState.board[index] = gameState.currentPlayer === 1 ? 'X' : 'O';
+  updateTicTacToeDisplay();
+  if (checkTicTacToeWin()) {
+    setTimeout(() => { alert(`PLAYER ${gameState.currentPlayer} VICTORY!`); recordWin(gameState.currentPlayer); }, 100);
+    return;
+  }
+  if (gameState.board.every(cell => cell !== '')) {
+    setTimeout(() => alert("DRAW - NO WINNER"), 100);
+    return;
+  }
+  gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
+  currentPlayer = gameState.currentPlayer;
+  updatePlayerNames();
+}
+
+function updateTicTacToeDisplay() {
+  const cells = document.querySelectorAll('.tic-tac-toe-cell');
+  cells.forEach((cell, index) => { cell.textContent = gameState.board[index]; });
+}
+
+function checkTicTacToeWin() {
+  const winPatterns = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+  const mark = gameState.currentPlayer === 1 ? 'X' : 'O';
+  return winPatterns.some(pattern => pattern.every(index => gameState.board[index] === mark));
+}
+
+function initAnagrams() {
+  const letters = ['COMPUTER', 'ELEPHANT', 'RAINBOW', 'KITCHEN', 'MOUNTAIN', 'FLOWERS', 'BICYCLE', 'HARMONY'];
+  gameState.currentLetters = letters[Math.floor(Math.random() * letters.length)];
+  gameState.player1Score = 0;
+  gameState.player2Score = 0;
+  gameState.turn = 1;
+  document.getElementById('anagramLetters').textContent = gameState.currentLetters;
+  document.getElementById('anagramInput').value = '';
+  document.getElementById('anagramResult').innerHTML = '';
+}
+
+function submitAnagram() {
+  const word = document.getElementById('anagramInput').value.toUpperCase().trim();
+  const letters = gameState.currentLetters;
+  if (word.length < 3) { alert('MINIMUM 3 LETTERS REQUIRED'); return; }
+  const letterCount = {};
+  for (const letter of letters) letterCount[letter] = (letterCount[letter] || 0) + 1;
+  for (const letter of word) {
+    if (!letterCount[letter] || letterCount[letter] === 0) {
+      alert('INVALID WORD - USES UNAVAILABLE LETTERS'); return;
+    }
+    letterCount[letter]--;
+  }
+  const score = word.length;
+  if (gameState.turn === 1) {
+    gameState.player1Score = score;
+    gameState.turn = 2;
+    currentPlayer = 2;
+    updatePlayerNames();
+    document.getElementById('anagramResult').innerHTML = `<p>PLAYER 1 SCORED ${score} POINTS WITH "${word}"</p><p>PLAYER 2'S TURN!</p>`;
+    document.getElementById('anagramInput').value = '';
+  } else {
+    gameState.player2Score = score;
+    const winner = gameState.player1Score > gameState.player2Score ? 1 : gameState.player2Score > gameState.player1Score ? 2 : 0;
+    let resultText = `PLAYER 2 SCORED ${score} POINTS WITH "${word}"<br>FINAL SCORES: P1: ${gameState.player1Score}, P2: ${gameState.player2Score}<br>`;
+    if (winner === 0) resultText += "DRAW RESULT";
+    else { resultText += `PLAYER ${winner} VICTORY!`; recordWin(winner, winner === 1 ? gameState.player1Score : gameState.player2Score); }
+    document.getElementById('anagramResult').innerHTML = resultText;
+  }
+}
+
+function initMemory() {
+  const numbers = [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8];
+  gameState.cards = numbers.sort(() => Math.random() - 0.5);
+  gameState.flipped = [];
+  gameState.matched = [];
+  gameState.moves = 0;
+  gameState.player1Matches = 0;
+  gameState.player2Matches = 0;
+  const grid = document.getElementById('memoryGrid');
+  grid.innerHTML = '';
+  for (let i = 0; i < 16; i++) {
+    const card = document.createElement('div');
+    card.className = 'number-button';
+    card.textContent = '?';
+    card.onclick = () => flipCard(i);
+    grid.appendChild(card);
+  }
+  updateMemoryScore();
+}
+
+function flipCard(index) {
+  if (gameState.flipped.length === 2 || gameState.flipped.includes(index) || gameState.matched.includes(index)) return;
+  gameState.flipped.push(index);
+  const cards = document.querySelectorAll('#memoryGrid .number-button');
+  cards[index].textContent = gameState.cards[index];
+  cards[index].classList.add('selected');
+  if (gameState.flipped.length === 2) {
+    gameState.moves++;
+    updateMemoryScore();
+    setTimeout(() => {
+      const [first, second] = gameState.flipped;
+      if (gameState.cards[first] === gameState.cards[second]) {
+        gameState.matched.push(first, second);
+        if (currentPlayer === 1) gameState.player1Matches++;
+        else gameState.player2Matches++;
+        if (gameState.matched.length === 16) {
+          const winner = gameState.player1Matches > gameState.player2Matches ? 1 : gameState.player2Matches > gameState.player1Matches ? 2 : 0;
+          setTimeout(() => {
+            if (winner === 0) alert("DRAW RESULT");
+            else { alert(`PLAYER ${winner} VICTORY WITH ${winner === 1 ? gameState.player1Matches : gameState.player2Matches} MATCHES!`); recordWin(winner, winner === 1 ? gameState.player1Matches : gameState.player2Matches); }
+          }, 500);
+        }
+      } else {
+        cards[first].textContent = '?';
+        cards[second].textContent = '?';
+        cards[first].classList.remove('selected');
+        cards[second].classList.remove('selected');
+        switchPlayer();
+      }
+      gameState.flipped = [];
+    }, 1000);
+  }
+}
+
+function updateMemoryScore() {
+  const player1Name = (document.getElementById('player1Name').value || 'ELENA').toUpperCase();
+  const player2Name = (document.getElementById('player2Name').value || 'BRYAN').toUpperCase();
+  document.getElementById('memoryScore').innerHTML = `MOVES: ${gameState.moves} | ${player1Name}: ${gameState.player1Matches} | ${player2Name}: ${gameState.player2Matches}`;
+}
+
+function initMathRace() {
+  gameState.score = 0;
+  gameState.timeLeft = 60;
+  gameState.currentProblem = generateMathProblem();
+  gameState.gameActive = true;
+  displayMathProblem();
+  startMathTimer();
+}
+
+function generateMathProblem() {
+  const operations = ['+', '-', '*'];
+  const op = operations[Math.floor(Math.random() * operations.length)];
+  let a, b, answer;
+  switch (op) {
+    case '+': a = Math.floor(Math.random() * 50) + 1; b = Math.floor(Math.random() * 50) + 1; answer = a + b; break;
+    case '-': a = Math.floor(Math.random() * 50) + 20; b = Math.floor(Math.random() * (a - 1)) + 1; answer = a - b; break;
+    case '*': a = Math.floor(Math.random() * 12) + 1; b = Math.floor(Math.random() * 12) + 1; answer = a * b; break;
+  }
+  return { problem: `${a} ${op} ${b}`, answer };
+}
+
+function displayMathProblem() {
+  document.getElementById('mathProblem').textContent = `${gameState.currentProblem.problem} = ?`;
+  document.getElementById('mathInput').value = '';
+}
+
+function submitMath() {
+  if (!gameState.gameActive) return;
+  const userAnswer = parseInt(document.getElementById('mathInput').value);
+  if (userAnswer === gameState.currentProblem.answer) {
+    gameState.score++;
+    gameState.currentProblem = generateMathProblem();
+    displayMathProblem();
+    document.getElementById('mathScore').textContent = `SCORE: ${gameState.score}`;
+  } else {
+    alert('INCORRECT - TRY AGAIN');
+    document.getElementById('mathInput').value = '';
+  }
+}
+
+function startMathTimer() {
+  const timer = setInterval(() => {
+    gameState.timeLeft--;
+    document.getElementById('mathTimer').textContent = gameState.timeLeft;
+    if (gameState.timeLeft <= 0) {
+      clearInterval(timer);
+      gameState.gameActive = false;
+      alert(`TIME EXPIRED! PLAYER ${currentPlayer} SCORED ${gameState.score} POINTS!`);
+      if (currentPlayer === 1) {
+        gameState.player1FinalScore = gameState.score;
+        currentPlayer = 2;
+        switchPlayer();
+        initMathRace();
+      } else {
+        const winner = gameState.player1FinalScore > gameState.score ? 1 : gameState.score > gameState.player1FinalScore ? 2 : 0;
+        setTimeout(() => {
+          if (winner === 0) alert("DRAW RESULT");
+          else { const winningScore = winner === 1 ? gameState.player1FinalScore : gameState.score; alert(`PLAYER ${winner} VICTORY WITH ${winningScore} POINTS!`); recordWin(winner, winningScore); }
+        }, 1000);
+      }
+    }
+  }, 1000);
+}
+
+// Drawing games
+let currentColor = 'black';
+let isDrawing = false;
+
+function initDrawGuess() {
+  const prompts = ['CAT', 'HOUSE', 'CAR', 'TREE', 'SUN', 'FLOWER', 'FISH', 'BIRD', 'BOOK', 'APPLE'];
+  gameState.currentPrompt = prompts[Math.floor(Math.random() * prompts.length)];
+  document.getElementById('drawPrompt').textContent = gameState.currentPrompt;
+  const canvas = document.getElementById('drawCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  setupDrawing(canvas, ctx);
+}
+
+function setupDrawing(canvas, ctx) {
+  canvas.addEventListener('mousedown', startDrawing);
+  canvas.addEventListener('mousemove', draw);
+  canvas.addEventListener('mouseup', stopDrawing);
+  canvas.addEventListener('mouseout', stopDrawing);
+}
+
+function startDrawing(e) {
+  isDrawing = true;
+  const rect = e.target.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  const ctx = e.target.getContext('2d');
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+}
+
+function draw(e) {
+  if (!isDrawing) return;
+  const rect = e.target.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  const ctx = e.target.getContext('2d');
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = currentColor;
+  ctx.lineTo(x, y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+}
+
+function stopDrawing() { isDrawing = false; }
+
+function selectColor(color) {
+  currentColor = color;
+  document.querySelectorAll('.color-button').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+function clearCanvas() {
+  const canvas = document.getElementById('drawCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function nextDrawRound() { switchPlayer(); initDrawGuess(); }
+
+function initDiceRace() {
+  gameState.player1Score = 0;
+  gameState.player2Score = 0;
+  gameState.targetScore = 50;
+  updateDiceScores();
+}
+
+function rollDice() {
+  const roll = Math.floor(Math.random() * 6) + 1;
+  const diceSymbols = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+  document.getElementById('diceDisplay').textContent = diceSymbols[roll - 1];
+  if (currentPlayer === 1) gameState.player1Score += roll;
+  else gameState.player2Score += roll;
+  updateDiceScores();
+  if (gameState.player1Score >= gameState.targetScore || gameState.player2Score >= gameState.targetScore) {
+    const winner = gameState.player1Score >= gameState.targetScore ? 1 : 2;
+    const winningScore = winner === 1 ? gameState.player1Score : gameState.player2Score;
+    setTimeout(() => {
+      alert(`PLAYER ${winner} VICTORY WITH ${winningScore} POINTS!`);
+      recordWin(winner, winningScore);
+    }, 500);
+  } else {
+    switchPlayer();
+  }
+}
+
+function updateDiceScores() {
+  const player1Name = (document.getElementById('player1Name').value || 'ELENA').toUpperCase();
+  const player2Name = (document.getElementById('player2Name').value || 'BRYAN').toUpperCase();
+  document.getElementById('diceScores').innerHTML = `${player1Name}: ${gameState.player1Score} | ${player2Name}: ${gameState.player2Score}`;
+}
+
+function initSequence() {
+  gameState.sequence = [];
+  gameState.playerSequence = [];
+  gameState.round = 1;
+  gameState.showingSequence = false;
+  document.getElementById('sequenceScore').textContent = `ROUND: ${gameState.round}`;
+  const grid = document.getElementById('sequenceGrid');
+  grid.innerHTML = '';
+  const colors = ['#ff0040', '#00ffff', '#00ff00', '#ffff00'];
+  for (let i = 0; i < 4; i++) {
+    const button = document.createElement('div');
+    button.className = 'number-button';
+    button.style.backgroundColor = colors[i];
+    button.onclick = () => addToPlayerSequence(i);
+    grid.appendChild(button);
+  }
+}
+
+function startSequenceRound() {
+  gameState.sequence.push(Math.floor(Math.random() * 4));
+  gameState.playerSequence = [];
+  gameState.showingSequence = true;
+  showSequence();
+}
+
+function showSequence() {
+  const colors = ['#ff0040', '#00ffff', '#00ff00', '#ffff00'];
+  const display = document.getElementById('sequenceDisplay');
+  display.innerHTML = '';
+  gameState.sequence.forEach((colorIndex, index) => {
+    setTimeout(() => {
+      const item = document.createElement('div');
+      item.style.cssText = `display: inline-block; width: 40px; height: 40px; margin: 5px; 
+        background: ${colors[colorIndex]}; border: 2px solid #00ff00; text-align: center; 
+        line-height: 36px; font-weight: bold; color: #000;`;
+      item.textContent = index + 1;
+      display.appendChild(item);
+      if (index === gameState.sequence.length - 1) {
+        setTimeout(() => { gameState.showingSequence = false; }, 1000);
+      }
+    }, index * 600);
+  });
+}
+
+function addToPlayerSequence(colorIndex) {
+  if (gameState.showingSequence) return;
+  gameState.playerSequence.push(colorIndex);
+  if (gameState.playerSequence[gameState.playerSequence.length - 1] !== gameState.sequence[gameState.playerSequence.length - 1]) {
+    alert(`SEQUENCE ERROR! PLAYER ${currentPlayer} SCORED ${gameState.round - 1} POINTS!`);
+    recordWin(currentPlayer, gameState.round - 1);
+    return;
+  }
+  if (gameState.playerSequence.length === gameState.sequence.length) {
+    gameState.round++;
+    document.getElementById('sequenceScore').textContent = `ROUND: ${gameState.round}`;
+    if (gameState.round > 10) {
+      alert(`MAXIMUM ROUNDS COMPLETED! PLAYER ${currentPlayer} ACHIEVED PERFECT SCORE!`);
+      recordWin(currentPlayer, 10);
+    } else {
+      setTimeout(() => startSequenceRound(), 1000);
+    }
+  }
+}
+
+function initWordChain() {
+  gameState.wordChain = [];
+  gameState.usedWords = new Set();
+  document.getElementById('chainDisplay').textContent = 'START WITH ANY WORD';
+  document.getElementById('chainInput').value = '';
+  document.getElementById('chainResult').innerHTML = '';
+}
+
+function submitChainWord() {
+  const word = document.getElementById('chainInput').value.toUpperCase().trim();
+  if (word.length < 2) {
+    alert('MINIMUM 2 LETTERS REQUIRED');
+    return;
+  }
+  if (gameState.usedWords.has(word)) {
+    alert('WORD ALREADY USED');
+    return;
+  }
+  if (gameState.wordChain.length > 0) {
+    const lastWord = gameState.wordChain[gameState.wordChain.length - 1];
+    if (word[0] !== lastWord.slice(-1)) {
+      alert(`WORD MUST START WITH "${lastWord.slice(-1)}"`);
+      return;
+    }
+  }
+  gameState.wordChain.push(word);
+  gameState.usedWords.add(word);
+  document.getElementById('chainDisplay').innerHTML = `<strong>CHAIN:</strong> ${gameState.wordChain.join(' → ')}`;
+  document.getElementById('chainInput').value = '';
+  const nextLetter = word.slice(-1);
+  document.getElementById('chainResult').innerHTML = `<p>ACCEPTED! NEXT WORD MUST START WITH "${nextLetter}"</p>`;
+  switchPlayer();
+}
+
+function initQuickDraw() {
+  const prompts = ['STAR', 'HEART', 'CIRCLE', 'SQUARE', 'TRIANGLE', 'FACE', 'ARROW', 'LIGHTNING'];
+  gameState.currentPrompt = prompts[Math.floor(Math.random() * prompts.length)];
+  gameState.timeLeft = 30;
+  gameState.drawing = false;
+  document.getElementById('quickDrawPrompt').textContent = gameState.currentPrompt;
+  document.getElementById('quickDrawTimer').textContent = gameState.timeLeft;
+  const canvas = document.getElementById('quickDrawCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  setupQuickDrawing(canvas, ctx);
+}
+
+function setupQuickDrawing(canvas, ctx) {
+  canvas.addEventListener('mousedown', startQuickDrawing);
+  canvas.addEventListener('mousemove', quickDraw);
+  canvas.addEventListener('mouseup', stopQuickDrawing);
+  canvas.addEventListener('mouseout', stopQuickDrawing);
+}
+
+function startQuickDrawing(e) {
+  if (!gameState.drawing) return;
+  isDrawing = true;
+  const rect = e.target.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const ctx = e.target.getContext('2d');
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+}
+
+function quickDraw(e) {
+  if (!isDrawing || !gameState.drawing) return;
+  const rect = e.target.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const ctx = e.target.getContext('2d');
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#00ff00';
+  ctx.lineTo(x, y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+}
+
+function stopQuickDrawing() {
+  isDrawing = false;
+}
+
+function startQuickDraw() {
+  gameState.drawing = true;
+  gameState.timeLeft = 30;
+  const timer = setInterval(() => {
+    gameState.timeLeft--;
+    document.getElementById('quickDrawTimer').textContent = gameState.timeLeft;
+    if (gameState.timeLeft <= 0) {
+      clearInterval(timer);
+      gameState.drawing = false;
+      alert(`TIME EXPIRED! PLAYER ${currentPlayer} COMPLETED DRAWING "${gameState.currentPrompt}"`);
+    }
+  }, 1000);
+}
+
+function nextQuickDraw() {
+  switchPlayer();
+  initQuickDraw();
+}
+
+// Messages functionality
+function sendMessage() {
+  const input = document.getElementById('messageInput');
+  const messageText = input.value.trim();
+  if (!messageText) return;
+  const player1Name = (document.getElementById('player1Name').value || 'ELENA').toUpperCase();
+  const player2Name = (document.getElementById('player2Name').value || 'BRYAN').toUpperCase();
+  const currentPlayerName = currentPlayer === 1 ? player1Name : player2Name;
+  const message = {
+    sender: currentPlayerName,
+    text: messageText.toUpperCase(),
+    timestamp: new Date().toLocaleTimeString(),
+    class: currentPlayerName.toLowerCase()
+  };
+  gameMessages.push(message);
+  input.value = '';
+  displayMessages();
+  saveData();
+}
+
+function displayMessages() {
+  const container = document.getElementById('messagesContainer');
+  if (gameMessages.length === 0) {
+    container.innerHTML = '<div style="text-align: center; color: #666; font-style: italic;">AWAITING TRANSMISSION...</div>';
+    return;
+  }
+  container.innerHTML = gameMessages.map(message => `
+    <div class="message">
+      <div class="message-sender">${message.sender} • ${message.timestamp}</div>
+      <div class="message-text">${message.text}</div>
+    </div>
+  `).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function clearMessages() {
+  gameMessages = [];
+  displayMessages();
+  saveData();
+}
+
+// Add Enter key support for inputs
+document.addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') {
+    if (currentGame === 'anagrams' && document.getElementById('anagramInput') === document.activeElement) {
+      submitAnagram();
+    } else if (currentGame === 'mathrace' && document.getElementById('mathInput') === document.activeElement) {
+      submitMath();
+    } else if (currentGame === 'wordchain' && document.getElementById('chainInput') === document.activeElement) {
+      submitChainWord();
+    } else if (document.getElementById('messageInput') === document.activeElement) {
+      sendMessage();
+    }
+  }
+});
+</script>
+    </body>
+    </html>
