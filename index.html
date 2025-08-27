@@ -94,7 +94,6 @@ body::before {
   font-family: 'Orbitron', monospace;
   font-size: 1.1em;
   text-align: center;
-  text-transform: uppercase;
 }
 
 .login-input {
@@ -113,6 +112,7 @@ body::before {
   font-weight: bold;
   transition: all 0.2s;
   text-shadow: 0 0 5px #00ff00;
+  text-transform: uppercase;
 }
 
 .login-button:hover {
@@ -739,7 +739,7 @@ body::before {
 
 <script>
 /* PASSWORD & TIMEOUT SYSTEM */
-const CORRECT_PASSWORD = "BANDESITTINGINATREE"; 
+const CORRECT_PASSWORD = "BandESittingInATree"; 
 let isLoggedIn = false;
 let activityTimeout;
 let lastActivityTime = Date.now();
@@ -747,27 +747,47 @@ const TIMEOUT_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds
 
 function checkPassword(){
   const inputPassword = document.getElementById('passwordInput').value;
+  console.log('Password entered:', inputPassword); // Debug line
+  console.log('Expected password:', CORRECT_PASSWORD); // Debug line
+  
   if(inputPassword === CORRECT_PASSWORD){
+    console.log('Password correct, logging in...'); // Debug line
     isLoggedIn = true;
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('gameContainer').style.display='block';
     document.getElementById('errorMessage').textContent = '';
-    startActivityMonitor();
+    
+    // Try starting activity monitor in a try-catch to prevent errors from blocking login
+    try {
+      startActivityMonitor();
+    } catch(e) {
+      console.error('Error starting activity monitor:', e);
+      // Login should still work even if timeout feature fails
+    }
   } else {
+    console.log('Password incorrect'); // Debug line
     document.getElementById('errorMessage').textContent='ACCESS DENIED - INVALID CODE';
     document.getElementById('passwordInput').value='';
   }
 }
 
 function startActivityMonitor() {
-  lastActivityTime = Date.now();
-  resetActivityTimeout();
-  
-  // Track user activity
-  const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-  activityEvents.forEach(event => {
-    document.addEventListener(event, updateActivity, true);
-  });
+  try {
+    lastActivityTime = Date.now();
+    resetActivityTimeout();
+    
+    // Track user activity
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    activityEvents.forEach(event => {
+      try {
+        document.addEventListener(event, updateActivity, true);
+      } catch(e) {
+        console.error('Error adding event listener for', event, e);
+      }
+    });
+  } catch(e) {
+    console.error('Error in startActivityMonitor:', e);
+  }
 }
 
 function updateActivity() {
