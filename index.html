@@ -849,16 +849,7 @@ let gameHistory = {};
 let globalScores = { player1: 0, player2: 0 };
 let gameMessages = [];
 
-document.addEventListener('DOMContentLoaded', function() {
-  document.getElementById('passwordInput').addEventListener('keypress', e => {
-    if(e.key==='Enter') checkPassword();
-  });
-  document.getElementById('player1Name').addEventListener('input', updatePlayerNames);
-  document.getElementById('player2Name').addEventListener('input', updatePlayerNames);
-  loadData();
-  updateGlobalScores();
-  updatePlayerNames();
-});
+
 
 function updatePlayerNames() {
   const player1 = (document.getElementById('player1Name').value || 'ELENA').toUpperCase();
@@ -985,11 +976,11 @@ function getGameConfig(gameType) {
       html: `<div class="game-info"><h3 style="color: #00ffff; text-shadow: 0 0 10px #00ffff;">DRAW: <span id="drawPrompt"></span></h3>
         <p>ONE PLAYER DRAWS, OTHER GUESSES</p></div>
         <div class="color-palette">
-          <div class="color-button active" style="background: black" onclick="selectColor('black')"></div>
-          <div class="color-button" style="background: #ff0040" onclick="selectColor('#ff0040')"></div>
-          <div class="color-button" style="background: #00ffff" onclick="selectColor('#00ffff')"></div>
-          <div class="color-button" style="background: #00ff00" onclick="selectColor('#00ff00')"></div>
-          <div class="color-button" style="background: #ffff00" onclick="selectColor('#ffff00')"></div>
+          <div class="color-button active" style="background: black" onclick="selectColor('black', event)"></div>
+          <div class="color-button" style="background: #ff0040" onclick="selectColor('#ff0040', event)"></div>
+          <div class="color-button" style="background: #00ffff" onclick="selectColor('#00ffff', event)"></div>
+          <div class="color-button" style="background: #00ff00" onclick="selectColor('#00ff00', event)"></div>
+          <div class="color-button" style="background: #ffff00" onclick="selectColor('#ffff00', event)"></div>
         </div><canvas id="drawCanvas" class="drawing-canvas" width="400" height="300"></canvas>
         <div style="text-align: center; margin-top: 15px;">
           <button class="submit-button" onclick="clearCanvas()">CLEAR</button>
@@ -1031,249 +1022,9 @@ function getGameConfig(gameType) {
 }
 
 // Game implementations
-function initConnect4() {
-  gameState.board = Array(6).fill().map(() => Array(7).fill(0));
-  gameState.currentPlayer = 1;
-  const board = document.getElementById('connect4Board');
-  board.innerHTML = '';
-  for (let row = 0; row < 6; row++) {
-    for (let col = 0; col < 7; col++) {
-      const cell = document.createElement('div');
-      cell.className = 'connect4-cell';
-      cell.onclick = () => dropPiece(col);
-      board.appendChild(cell);
-    }
-  }
-}
 
-function dropPiece(col) {
-  for (let row = 5; row >= 0; row--) {
-    if (gameState.player1Score >= gameState.targetScore || gameState.player2Score >= gameState.targetScore) {
-    const winner = gameState.player1Score >= gameState.targetScore ? 1 : 2;
-    const winningScore = winner === 1 ? gameState.player1Score : gameState.player2Score;
-    setTimeout(() => { alert(`PLAYER ${winner} VICTORY WITH ${winningScore} POINTS!`); recordWin(winner, winningScore); }, 500);
-  } else switchPlayer();
-}
+// Game implementations - CORRECTED VERSION (no duplicates)
 
-function updateDiceScores() {
-  const player1Name = (document.getElementById('player1Name').value || 'ELENA').toUpperCase();
-  const player2Name = (document.getElementById('player2Name').value || 'BRYAN').toUpperCase();
-  document.getElementById('diceScores').innerHTML = `${player1Name}: ${gameState.player1Score} | ${player2Name}: ${gameState.player2Score}`;
-}
-
-function initSequence() {
-  gameState.sequence = [];
-  gameState.playerSequence = [];
-  gameState.round = 1;
-  gameState.showingSequence = false;
-  document.getElementById('sequenceScore').textContent = `ROUND: ${gameState.round}`;
-  const grid = document.getElementById('sequenceGrid');
-  grid.innerHTML = '';
-  const colors = ['#ff0040', '#00ffff', '#00ff00', '#ffff00'];
-  for (let i = 0; i < 4; i++) {
-    const button = document.createElement('div');
-    button.className = 'number-button';
-    button.style.backgroundColor = colors[i];
-    button.onclick = () => addToPlayerSequence(i);
-    grid.appendChild(button);
-  }
-}
-
-function startSequenceRound() {
-  gameState.sequence.push(Math.floor(Math.random() * 4));
-  gameState.playerSequence = [];
-  gameState.showingSequence = true;
-  showSequence();
-}
-
-function showSequence() {
-  const colors = ['#ff0040', '#00ffff', '#00ff00', '#ffff00'];
-  const display = document.getElementById('sequenceDisplay');
-  display.innerHTML = '';
-  gameState.sequence.forEach((colorIndex, index) => {
-    setTimeout(() => {
-      const item = document.createElement('div');
-      item.style.cssText = `display: inline-block; width: 40px; height: 40px; margin: 5px; 
-        background: ${colors[colorIndex]}; border: 2px solid #00ff00; text-align: center; 
-        line-height: 36px; font-weight: bold; color: #000;`;
-      item.textContent = index + 1;
-      display.appendChild(item);
-      if (index === gameState.sequence.length - 1) {
-        setTimeout(() => { gameState.showingSequence = false; }, 1000);
-      }
-    }, index * 600);
-  });
-}
-
-function addToPlayerSequence(colorIndex) {
-  if (gameState.showingSequence) return;
-  gameState.playerSequence.push(colorIndex);
-  if (gameState.playerSequence[gameState.playerSequence.length - 1] !== gameState.sequence[gameState.playerSequence.length - 1]) {
-    alert(`SEQUENCE ERROR! PLAYER ${currentPlayer} SCORED ${gameState.round - 1} POINTS!`);
-    recordWin(currentPlayer, gameState.round - 1);
-    return;
-  }
-  if (gameState.playerSequence.length === gameState.sequence.length) {
-    gameState.round++;
-    document.getElementById('sequenceScore').textContent = `ROUND: ${gameState.round}`;
-    if (gameState.round > 10) {
-      alert(`MAXIMUM ROUNDS COMPLETED! PLAYER ${currentPlayer} ACHIEVED PERFECT SCORE!`);
-      recordWin(currentPlayer, 10);
-    } else setTimeout(() => startSequenceRound(), 1000);
-  }
-}
-
-function initWordChain() {
-  gameState.wordChain = [];
-  gameState.usedWords = new Set();
-  document.getElementById('chainDisplay').textContent = 'START WITH ANY WORD';
-  document.getElementById('chainInput').value = '';
-  document.getElementById('chainResult').innerHTML = '';
-}
-
-function submitChainWord() {
-  const word = document.getElementById('chainInput').value.toUpperCase().trim();
-  if (word.length < 2) { alert('MINIMUM 2 LETTERS REQUIRED'); return; }
-  if (gameState.usedWords.has(word)) { alert('WORD ALREADY USED'); return; }
-  if (gameState.wordChain.length > 0) {
-    const lastWord = gameState.wordChain[gameState.wordChain.length - 1];
-    if (word[0] !== lastWord.slice(-1)) { alert(`WORD MUST START WITH "${lastWord.slice(-1)}"`); return; }
-  }
-  gameState.wordChain.push(word);
-  gameState.usedWords.add(word);
-  document.getElementById('chainDisplay').innerHTML = `<strong>CHAIN:</strong> ${gameState.wordChain.join(' → ')}`;
-  document.getElementById('chainInput').value = '';
-  const nextLetter = word.slice(-1);
-  document.getElementById('chainResult').innerHTML = `<p>ACCEPTED! NEXT WORD MUST START WITH "${nextLetter}"</p>`;
-  switchPlayer();
-}
-
-function initQuickDraw() {
-  const prompts = ['STAR', 'HEART', 'CIRCLE', 'SQUARE', 'TRIANGLE', 'FACE', 'ARROW', 'LIGHTNING'];
-  gameState.currentPrompt = prompts[Math.floor(Math.random() * prompts.length)];
-  gameState.timeLeft = 30;
-  gameState.drawing = false;
-  document.getElementById('quickDrawPrompt').textContent = gameState.currentPrompt;
-  document.getElementById('quickDrawTimer').textContent = gameState.timeLeft;
-  const canvas = document.getElementById('quickDrawCanvas');
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  setupQuickDrawing(canvas, ctx);
-}
-
-function setupQuickDrawing(canvas, ctx) {
-  canvas.addEventListener('mousedown', startQuickDrawing);
-  canvas.addEventListener('mousemove', quickDraw);
-  canvas.addEventListener('mouseup', stopQuickDrawing);
-  canvas.addEventListener('mouseout', stopQuickDrawing);
-}
-
-function startQuickDrawing(e) {
-  if (!gameState.drawing) return;
-  isDrawing = true;
-  const rect = e.target.getBoundingClientRect();
-  const x = e.clientX - rect.left, y = e.clientY - rect.top;
-  const ctx = e.target.getContext('2d');
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-}
-
-function quickDraw(e) {
-  if (!isDrawing || !gameState.drawing) return;
-  const rect = e.target.getBoundingClientRect();
-  const x = e.clientX - rect.left, y = e.clientY - rect.top;
-  const ctx = e.target.getContext('2d');
-  ctx.lineWidth = 4;
-  ctx.lineCap = 'round';
-  ctx.strokeStyle = '#00ff00';
-  ctx.lineTo(x, y);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-}
-
-function stopQuickDrawing() { isDrawing = false; }
-
-function startQuickDraw() {
-  gameState.drawing = true;
-  gameState.timeLeft = 30;
-  const timer = setInterval(() => {
-    gameState.timeLeft--;
-    document.getElementById('quickDrawTimer').textContent = gameState.timeLeft;
-    if (gameState.timeLeft <= 0) {
-      clearInterval(timer);
-      gameState.drawing = false;
-      alert(`TIME EXPIRED! PLAYER ${currentPlayer} COMPLETED DRAWING "${gameState.currentPrompt}"`);
-    }
-  }, 1000);
-}
-
-function nextQuickDraw() { switchPlayer(); initQuickDraw(); }
-
-// Messages functionality
-function sendMessage() {
-  const input = document.getElementById('messageInput');
-  const messageText = input.value.trim();
-  if (!messageText) return;
-  const player1Name = (document.getElementById('player1Name').value || 'ELENA').toUpperCase();
-  const player2Name = (document.getElementById('player2Name').value || 'BRYAN').toUpperCase();
-  const currentPlayerName = currentPlayer === 1 ? player1Name : player2Name;
-  const message = {
-    sender: currentPlayerName, text: messageText.toUpperCase(), 
-    timestamp: new Date().toLocaleTimeString(), class: currentPlayerName.toLowerCase()
-  };
-  gameMessages.push(message);
-  input.value = '';
-  displayMessages();
-  saveData();
-}
-
-function displayMessages() {
-  const container = document.getElementById('messagesContainer');
-  if (gameMessages.length === 0) {
-    container.innerHTML = '<div style="text-align: center; color: #666; font-style: italic;">AWAITING TRANSMISSION...</div>';
-    return;
-  }
-  container.innerHTML = gameMessages.map(message => `
-    <div class="message">
-      <div class="message-sender">${message.sender} • ${message.timestamp}</div>
-      <div class="message-text">${message.text}</div>
-    </div>
-  `).join('');
-  container.scrollTop = container.scrollHeight;
-}
-
-function clearMessages() {
-  gameMessages = [];
-  displayMessages();
-  saveData();
-}
-
-// Event listeners
-document.addEventListener('DOMContentLoaded', function() {
-  document.getElementById('passwordInput').addEventListener('keypress', e => {
-    if(e.key==='Enter') checkPassword();
-  });
-  document.getElementById('loginButton').addEventListener('click', checkPassword);
-  document.getElementById('player1Name').addEventListener('input', updatePlayerNames);
-  document.getElementById('player2Name').addEventListener('input', updatePlayerNames);
-  loadData();
-  updateGlobalScores();
-  updatePlayerNames();
-});
-
-// General key press handlers for game inputs
-document.addEventListener('keypress', function(e) {
-  if (e.key === 'Enter') {
-    if (currentGame === 'anagrams' && document.getElementById('anagramInput') === document.activeElement) submitAnagram();
-    else if (currentGame === 'mathrace' && document.getElementById('mathInput') === document.activeElement) submitMath();
-    else if (currentGame === 'wordchain' && document.getElementById('chainInput') === document.activeElement) submitChainWord();
-    else if (document.getElementById('messageInput') === document.activeElement) sendMessage();
-  }
-});
-  
 function initConnect4() {
   gameState.board = Array(6).fill().map(() => Array(7).fill(0));
   gameState.currentPlayer = 1;
@@ -1596,10 +1347,10 @@ function draw(e) {
 
 function stopDrawing() { isDrawing = false; }
 
-function selectColor(color) {
+function selectColor(color, e) {  // FIXED: Added event parameter
   currentColor = color;
   document.querySelectorAll('.color-button').forEach(btn => btn.classList.remove('active'));
-  event.target.classList.add('active');
+  e.target.classList.add('active');
 }
 
 function clearCanvas() {
@@ -1641,7 +1392,7 @@ function rollDice() {
 function updateDiceScores() {
   const player1Name = (document.getElementById('player1Name').value || 'ELENA').toUpperCase();
   const player2Name = (document.getElementById('player2Name').value || 'BRYAN').toUpperCase();
-  document.getElementById('diceScores').innerHTML = `${player1Name}: ${gameState.player1Score} | ${player2Name}: ${gameState.player2Score}`;
+  document.getElementById('diceScores').innerHTML = `${player1Name}: ${gameState.player1Score} | ${player2Name}: ${gameState.player2Scores}`;
 }
 
 function initSequence() {
@@ -1854,20 +1605,29 @@ function clearMessages() {
   saveData();
 }
 
-// Add Enter key support for inputs
+// Event listeners - SINGLE DEFINITION
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('passwordInput').addEventListener('keypress', e => {
+    if(e.key==='Enter') checkPassword();
+  });
+  document.getElementById('loginButton').addEventListener('click', checkPassword);
+  document.getElementById('player1Name').addEventListener('input', updatePlayerNames);
+  document.getElementById('player2Name').addEventListener('input', updatePlayerNames);
+  loadData();
+  updateGlobalScores();
+  updatePlayerNames();
+});
+
+// General key press handlers for game inputs - SINGLE DEFINITION
 document.addEventListener('keypress', function(e) {
   if (e.key === 'Enter') {
-    if (currentGame === 'anagrams' && document.getElementById('anagramInput') === document.activeElement) {
-      submitAnagram();
-    } else if (currentGame === 'mathrace' && document.getElementById('mathInput') === document.activeElement) {
-      submitMath();
-    } else if (currentGame === 'wordchain' && document.getElementById('chainInput') === document.activeElement) {
-      submitChainWord();
-    } else if (document.getElementById('messageInput') === document.activeElement) {
-      sendMessage();
-    }
+    if (currentGame === 'anagrams' && document.getElementById('anagramInput') === document.activeElement) submitAnagram();
+    else if (currentGame === 'mathrace' && document.getElementById('mathInput') === document.activeElement) submitMath();
+    else if (currentGame === 'wordchain' && document.getElementById('chainInput') === document.activeElement) submitChainWord();
+    else if (document.getElementById('messageInput') === document.activeElement) sendMessage();
   }
 });
+  
 </script>
     </body>
     </html>
