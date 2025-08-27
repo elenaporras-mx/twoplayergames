@@ -876,7 +876,7 @@ function endSession() {
   gameMessages = [];
   
   // Reset UI
-  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginScreen').style.display = 'block';
   document.getElementById('gameContainer').style.display = 'none';
   document.getElementById('passwordInput').value = '';
   
@@ -1022,4 +1022,3 @@ function loadGameHistory(gameType) {
         historyContent.innerHTML = '<p style="text-align: center; color: #666; font-style: italic;">NO RECORDS FOUND</p>';
         return;
     }
-      </script>
