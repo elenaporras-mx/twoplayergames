@@ -736,6 +736,8 @@ body::before {
 </div>
 
 <script>
+console.log("Script is loading");
+alert("JavaScript is working");
 const CORRECT_PASSWORD = "BandESittingInATree";
 let isLoggedIn = false;
 let activityTimeout;
@@ -744,6 +746,8 @@ const TIMEOUT_DURATION = 15 * 60 * 1000;
 
 // Global functions
 function checkPassword() {
+  console.log("checkPassword called");
+  alert("Function is running");
   const inputPassword = document.getElementById('passwordInput').value;
   if(inputPassword === CORRECT_PASSWORD){
     isLoggedIn = true;
