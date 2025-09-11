@@ -931,6 +931,7 @@ function loginAsPlayer(playerNum) {
   // Set initial location to lobby
   setTimeout(() => {
     updatePlayerLocation('lobby');
+    updatePanelVisibility();
     console.log('Initial location set to lobby');
   }, 500);
 
@@ -1114,6 +1115,8 @@ function updateConnectionStatus(otherPlayerData) {
     statusDiv.textContent = `WAITING FOR PLAYER ${otherPlayerNum}...`;
     statusDiv.style.color = '#ffff00';
     statusDiv.style.borderColor = '#ffff00';
+    //update panel vis when status changes 
+    updatePanelVisibility();
     return;
   }
   
@@ -1147,6 +1150,8 @@ function updateConnectionStatus(otherPlayerData) {
   statusDiv.textContent = `${otherName} ${locationText}`;
   statusDiv.style.color = '#00ffff';
   statusDiv.style.borderColor = '#00ffff';
+
+  updatePanelVisibility();
 }
 
 function createStatusDiv() {
@@ -1449,8 +1454,8 @@ function startGame(gameType) {
   
   currentGame = gameType;
   currentPlayer = 1;
-  gameState = {};
-  gameMessages = [];
+  gameState = {currentPlayer: 1};
+ 
   document.getElementById('gamesGrid').style.display = 'none';
   document.getElementById('gameArea').style.display = 'block';
   document.getElementById('historyPanel').style.display = 'block';
@@ -1458,7 +1463,7 @@ function startGame(gameType) {
   updatePlayerNames();
   syncGameState();
   loadGameHistory(gameType);
-  clearMessages();
+ 
   const gameConfig = getGameConfig(gameType);
   document.getElementById('gameTitle').textContent = gameConfig.title;
   document.getElementById('gameContent').innerHTML = gameConfig.html;
@@ -1467,13 +1472,51 @@ function startGame(gameType) {
   updatePlayerLocation(gameType);
 }
 
+function updatePanelVisibility() {
+  const historyPanel = document.getElementById('historyPanel');
+  const messagesPanel = document.getElementById('messagesPanel');
+  
+  if (otherPlayerConnected) {
+    // If both players are connected, always show chat
+    messagesPanel.style.display = 'block';
+    
+    // Show history panel if in a game, or show placeholder if in lobby
+    if (currentGame) {
+      historyPanel.style.display = 'block';
+      loadGameHistory(currentGame);
+    } else {
+      historyPanel.style.display = 'block';
+      document.getElementById('historyContent').innerHTML = '<p style="text-align: center; color: #666; font-style: italic;">SELECT A GAME TO VIEW HISTORY</p>';
+    }
+  } else {
+    // If other player isn't connected, hide both panels
+    historyPanel.style.display = 'none';
+    messagesPanel.style.display = 'none';
+  }
+}
+
 function backToMenu() {
   currentGame = null;
+  
+  // Always show the games grid
   document.getElementById('gamesGrid').style.display = 'grid';
   document.getElementById('gameArea').style.display = 'none';
-  document.getElementById('historyPanel').style.display = 'none';
-  document.getElementById('messagesPanel').style.display = 'none';
-
+  
+  // Only hide chat and history if other player isn't connected
+  // If other player is connected, keep them visible for communication
+  if (!otherPlayerConnected) {
+    document.getElementById('historyPanel').style.display = 'none';
+    document.getElementById('messagesPanel').style.display = 'none';
+  } else {
+    // Keep panels visible but clear the history since we're not in a specific game
+    document.getElementById('historyPanel').style.display = 'block';
+    document.getElementById('messagesPanel').style.display = 'block';
+    
+    // Clear game-specific history but keep the panels
+    document.getElementById('historyContent').innerHTML = '<p style="text-align: center; color: #666; font-style: italic;">SELECT A GAME TO VIEW HISTORY</p>';
+  }
+  
+  // Update location to lobby
   updatePlayerLocation('lobby');
 }
 
