@@ -960,7 +960,6 @@ function connectToFirebase(playerNum) {
     }
   });
   //Listen for player's location
-  const otherPlayerNum = playerNum === 1 ? 2 : 1;
   database.ref(`gameSession/player${otherPlayerNum}`).on('value', (snapshot) => {
     const otherPlayerData = snapshot.val();
     const wasConnected = otherPlayerConnected;
