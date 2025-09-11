@@ -814,14 +814,33 @@ function loadData() {
 }
 
 function logout() {
+  // Set logged out FIRST to prevent any callbacks from executing
+  isLoggedIn = false;
+  
   // Clean up Firebase connection
   if (myPlayerNumber) {
     database.ref(`gameSession/player${myPlayerNumber}`).update({
       connected: false,
       lastSeen: firebase.database.ServerValue.TIMESTAMP
     });
-    // Remove all listeners
-    database.ref().off();
+  }
+
+  // Remove ALL Firebase listeners
+  if (window.firebaseListeners) {
+    window.firebaseListeners.forEach(listener => {
+      listener.ref.off('value', listener.callback);
+      listener.ref.off('child_added', listener.callback);
+    });
+    window.firebaseListeners = [];
+  }
+  
+  // Remove all listeners from the entire Firebase reference
+  database.ref().off();
+  
+  // Clear heartbeat
+  if (window.currentHeartbeat) {
+    clearInterval(window.currentHeartbeat);
+    window.currentHeartbeat = null;
   }
 
   // Save data before logout
@@ -829,15 +848,14 @@ function logout() {
   
   // Clear timeout and reset login state
   clearTimeout(activityTimeout);
-  isLoggedIn = false;
   currentGame = null;
   gameState = {};
-  myPlayerNumber = null; // ADD THIS
-  otherPlayerConnected = false; // ADD THIS
+  myPlayerNumber = null;
+  otherPlayerConnected = false;
   
   // Remove connection status div
   const statusDiv = document.getElementById('connectionStatus');
-  if (statusDiv) statusDiv.remove(); // ADD THIS
+  if (statusDiv) statusDiv.remove();
   
   // Show login screen
   document.getElementById('loginScreen').style.display = 'block';
@@ -920,10 +938,12 @@ function loginAsPlayer(playerNum) {
 }
 
 function connectToFirebase(playerNum) {
-  // Set up disconnect handling FIRST
+  // Store listener references for proper cleanup
+  window.firebaseListeners = window.firebaseListeners || [];
+  
   const playerRef = database.ref(`gameSession/player${playerNum}`);
   
-  // Mark as disconnected when this client disconnects
+  // Set up disconnect handling
   playerRef.onDisconnect().update({
     connected: false,
     lastSeen: firebase.database.ServerValue.TIMESTAMP
@@ -934,36 +954,14 @@ function connectToFirebase(playerNum) {
     name: document.getElementById(`player${playerNum}Name`).value.toUpperCase(),
     connected: true,
     lastSeen: firebase.database.ServerValue.TIMESTAMP
-  }).then(() => {
-    console.log(`Player ${playerNum} successfully marked as connected`);
-  }).catch((error) => {
-    console.error(`Error marking player ${playerNum} as connected:`, error);
   });
-  // Listen for other player's connection status
+
+  // Listen for other player's location
   const otherPlayerNum = playerNum === 1 ? 2 : 1;
-  database.ref(`gameSession/player${otherPlayerNum}/connected`).on('value', (snapshot) => {
-    const previousState = otherPlayerConnected;
-    otherPlayerConnected = snapshot.val() === true; // Ensure boolean conversion
+  const otherPlayerListener = database.ref(`gameSession/player${otherPlayerNum}`).on('value', (snapshot) => {
+    // Only update if we're still logged in
+    if (!isLoggedIn) return;
     
-    console.log(`Other player (${otherPlayerNum}) connection changed from ${previousState} to ${otherPlayerConnected}`);
-    
-    // Update connection status display
-    updateConnectionStatus();
-    
-    // If other player just connected, show notification
-    if (!previousState && otherPlayerConnected) {
-      const connectDiv = document.createElement('div');
-      connectDiv.style.cssText = `position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-        background: rgba(0, 51, 0, 0.95); border: 2px solid #00ff00; padding: 15px; 
-        color: #00ff00; text-shadow: 0 0 10px #00ff00; font-family: 'Orbitron', monospace; 
-        font-weight: bold; text-transform: uppercase; z-index: 10000;`;
-      connectDiv.textContent = `PLAYER ${otherPlayerNum} CONNECTED!`;
-      document.body.appendChild(connectDiv);
-      setTimeout(() => { if (connectDiv.parentNode) connectDiv.remove(); }, 3000);
-    }
-  });
-  //Listen for player's location
-  database.ref(`gameSession/player${otherPlayerNum}`).on('value', (snapshot) => {
     const otherPlayerData = snapshot.val();
     const wasConnected = otherPlayerConnected;
     
@@ -971,7 +969,6 @@ function connectToFirebase(playerNum) {
       otherPlayerConnected = otherPlayerData.connected === true;
       updateConnectionStatus(otherPlayerData);
       
-      // Show temporary "both players connected" notification
       if (!wasConnected && otherPlayerConnected) {
         showTemporaryNotification('BOTH PLAYERS CONNECTED!', '#00ff00', 3000);
       }
@@ -981,87 +978,88 @@ function connectToFirebase(playerNum) {
     }
   });
   
+  // Store the listener reference
+  window.firebaseListeners.push({
+    ref: database.ref(`gameSession/player${otherPlayerNum}`),
+    callback: otherPlayerListener
+  });
+
   // Listen for game state changes
-  database.ref('gameSession/gameState').on('value', (snapshot) => {
+  const gameStateListener = database.ref('gameSession/gameState').on('value', (snapshot) => {
+    if (!isLoggedIn) return;
     if (snapshot.val()) {
       gameState = { ...gameState, ...snapshot.val() };
       updateGameDisplay();
     }
   });
+  
+  window.firebaseListeners.push({
+    ref: database.ref('gameSession/gameState'),
+    callback: gameStateListener
+  });
 
   // Listen for current player changes
-  database.ref('gameSession/currentPlayer').on('value', (snapshot) => {
+  const currentPlayerListener = database.ref('gameSession/currentPlayer').on('value', (snapshot) => {
+    if (!isLoggedIn) return;
     if (snapshot.val()) {
       currentPlayer = snapshot.val();
       gameState.currentPlayer = snapshot.val();
       updatePlayerNames();
     }
   });
+  
+  window.firebaseListeners.push({
+    ref: database.ref('gameSession/currentPlayer'),
+    callback: currentPlayerListener
+  });
 
-  // Listen for current game changes
-  database.ref('gameSession/currentGame').on('value', (snapshot) => {
-    if (snapshot.val() && snapshot.val() !== currentGame) {
-      console.log(`Game changed to ${snapshot.val()}`);
-      // Optionally sync to the new game state
+  // Listen for chat messages
+  const messagesListener = database.ref('gameSession/messages').on('value', (snapshot) => {
+    if (!isLoggedIn) return;
+    const messages = snapshot.val();
+    if (messages) {
+      gameMessages = Object.keys(messages).map(key => ({
+        ...messages[key],
+        id: key
+      }));
+    } else {
+      gameMessages = [];
+    }
+    
+    console.log(`Received ${gameMessages.length} messages from Firebase`);
+    displayMessages();
+    saveData();
+  });
+  
+  window.firebaseListeners.push({
+    ref: database.ref('gameSession/messages'),
+    callback: messagesListener
+  });
+
+  // Listen for new messages to show notifications
+  const messageNotificationListener = database.ref('gameSession/messages').on('child_added', (snapshot) => {
+    if (!isLoggedIn) return;
+    const message = snapshot.val();
+    
+    if (message && message.senderNumber !== myPlayerNumber && gameMessages.length > 0) {
+      const notificationDiv = document.createElement('div');
+      notificationDiv.style.cssText = `position: fixed; top: 60px; right: 20px; 
+        background: rgba(0, 51, 0, 0.95); border: 2px solid #00ff00; padding: 10px; 
+        color: #00ff00; text-shadow: 0 0 5px #00ff00; font-family: 'Orbitron', monospace; 
+        font-size: 0.8em; z-index: 10000; max-width: 200px; border-radius: 3px;
+        animation: slideIn 0.3s ease-out;`;
+      
+      notificationDiv.innerHTML = `<strong>NEW MESSAGE</strong><br>${message.sender}: ${message.text.substring(0, 30)}${message.text.length > 30 ? '...' : ''}`;
+      document.body.appendChild(notificationDiv);
+      
+      notificationDiv.onclick = () => notificationDiv.remove();
+      setTimeout(() => { 
+        if (notificationDiv.parentNode) notificationDiv.remove(); 
+      }, 3000);
     }
   });
-// Listen for chat messages - main listener
-database.ref('gameSession/messages').on('value', (snapshot) => {
-  const messages = snapshot.val();
-  if (messages) {
-    // Convert Firebase object to array
-    gameMessages = Object.keys(messages).map(key => ({
-      ...messages[key],
-      id: key
-    }));
-  } else {
-    gameMessages = [];
-  }
-  
-  console.log(`Received ${gameMessages.length} messages from Firebase`);
-  displayMessages();
-  saveData();
-});
 
-// Listen for new messages to show notifications
-database.ref('gameSession/messages').on('child_added', (snapshot) => {
-  const message = snapshot.val();
-  
-  // Only show notification for messages from other player
-  // Also check if we have messages already loaded to avoid notifications on initial load
-  if (message && message.senderNumber !== myPlayerNumber && gameMessages.length > 0) {
-    const notificationDiv = document.createElement('div');
-    notificationDiv.style.cssText = `position: fixed; top: 60px; right: 20px; 
-      background: rgba(0, 51, 0, 0.95); border: 2px solid #00ff00; padding: 10px; 
-      color: #00ff00; text-shadow: 0 0 5px #00ff00; font-family: 'Orbitron', monospace; 
-      font-size: 0.8em; z-index: 10000; max-width: 200px; border-radius: 3px;
-      animation: slideIn 0.3s ease-out;`;
-    
-    // Add a simple slide-in animation
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-      }
-    `;
-    if (!document.querySelector('style[data-notification]')) {
-      style.setAttribute('data-notification', 'true');
-      document.head.appendChild(style);
-    }
-    
-    notificationDiv.innerHTML = `<strong>NEW MESSAGE</strong><br>${message.sender}: ${message.text.substring(0, 30)}${message.text.length > 30 ? '...' : ''}`;
-    document.body.appendChild(notificationDiv);
-    
-    // Auto-remove after 3 seconds, or click to dismiss
-    notificationDiv.onclick = () => notificationDiv.remove();
-    setTimeout(() => { 
-      if (notificationDiv.parentNode) notificationDiv.remove(); 
-    }, 3000);
-  }
-});
-
-  // Keep connection alive with heartbeat
+  // Keep connection alive
   const heartbeat = setInterval(() => {
     if (isLoggedIn) {
       playerRef.child('lastSeen').set(firebase.database.ServerValue.TIMESTAMP);
@@ -1069,32 +1067,9 @@ database.ref('gameSession/messages').on('child_added', (snapshot) => {
       clearInterval(heartbeat);
     }
   }, 30000);
-  
-  // Use Firebase's built-in presence detection
-  database.ref('.info/connected').on('value', (snapshot) => {
-    if (snapshot.val() === true) {
-      console.log('Connected to Firebase');
-      // When we connect, make sure our status is set correctly
-      playerRef.update({
-        connected: true,
-        lastSeen: firebase.database.ServerValue.TIMESTAMP
-      });
-    } else {
-      console.log('Disconnected from Firebase');
-    }
-  });
 
-  // Also listen to our own connection status for debugging
-  playerRef.child('connected').on('value', (snapshot) => {
-    console.log(`This player (${playerNum}) connected status:`, snapshot.val());
-  });
-
-  // After setting up all listeners, do an initial check of other player's status
-  database.ref(`gameSession/player${otherPlayerNum}/connected`).once('value', (snapshot) => {
-    otherPlayerConnected = snapshot.val() === true;
-    console.log(`Initial check - other player connected: ${otherPlayerConnected}`);
-    updateConnectionStatus();
-  });
+  // Store heartbeat for cleanup
+  window.currentHeartbeat = heartbeat;
 }
 
 function showTemporaryNotification(message, color = '#00ff00', duration = 3000) {
@@ -1386,22 +1361,41 @@ window.continueSession = function() {
 }
 
 window.endSession = function() {
+  // Set logged out FIRST
+  isLoggedIn = false;
+  
   const warningDiv = document.getElementById('timeoutWarning');
   if (warningDiv) {
     if (warningDiv.countdownInterval) clearInterval(warningDiv.countdownInterval);
     warningDiv.remove();
   }
+  
   // Clean up Firebase connection
   if (myPlayerNumber) {
     database.ref(`gameSession/player${myPlayerNumber}`).update({
       connected: false,
       lastSeen: firebase.database.ServerValue.TIMESTAMP
     });
-    database.ref().off();
+  }
+  
+  // Remove ALL Firebase listeners
+  if (window.firebaseListeners) {
+    window.firebaseListeners.forEach(listener => {
+      listener.ref.off('value', listener.callback);
+      listener.ref.off('child_added', listener.callback);
+    });
+    window.firebaseListeners = [];
+  }
+  
+  database.ref().off();
+  
+  // Clear heartbeat
+  if (window.currentHeartbeat) {
+    clearInterval(window.currentHeartbeat);
+    window.currentHeartbeat = null;
   }
   
   clearTimeout(activityTimeout);
-  isLoggedIn = false;
   currentGame = null;
   gameState = {};
   gameMessages = [];
