@@ -743,6 +743,95 @@ let lastActivityTime = Date.now();
 const TIMEOUT_DURATION = 15 * 60 * 1000;
 
 // Global functions
+function saveData() {
+  window.gameData = { 
+    gameHistory, 
+    globalScores, 
+    player1Name: document.getElementById('player1Name').value,
+    player2Name: document.getElementById('player2Name').value, 
+    gameMessages 
+  };
+  // Store in memory for session persistence
+  sessionStorage.setItem('gameHubData', JSON.stringify(window.gameData));
+}
+
+function loadData() {
+  // First try to load from session storage
+  const savedData = sessionStorage.getItem('gameHubData');
+  if (savedData) {
+    try {
+      const data = JSON.parse(savedData);
+      gameHistory = data.gameHistory || {};
+      globalScores = data.globalScores || { player1: 0, player2: 0 };
+      gameMessages = data.gameMessages || [];
+      if (data.player1Name) document.getElementById('player1Name').value = data.player1Name;
+      if (data.player2Name) document.getElementById('player2Name').value = data.player2Name;
+      window.gameData = data;
+      return;
+    } catch(e) {
+      console.error('Error loading saved data:', e);
+    }
+  }
+  
+  // Fallback to window.gameData if available
+  if (window.gameData) {
+    const data = window.gameData;
+    gameHistory = data.gameHistory || {};
+    globalScores = data.globalScores || { player1: 0, player2: 0 };
+    gameMessages = data.gameMessages || [];
+    if (data.player1Name) document.getElementById('player1Name').value = data.player1Name;
+    if (data.player2Name) document.getElementById('player2Name').value = data.player2Name;
+  }
+}
+
+function logout() {
+  // Save data before logout
+  saveData();
+  
+  // Clear timeout and reset login state
+  clearTimeout(activityTimeout);
+  isLoggedIn = false;
+  currentGame = null;
+  gameState = {};
+  
+  // Show login screen
+  document.getElementById('loginScreen').style.display = 'block';
+  document.getElementById('gameContainer').style.display = 'none';
+  document.getElementById('passwordInput').value = '';
+  
+  // Show logout confirmation
+  const logoutDiv = document.createElement('div');
+  logoutDiv.style.cssText = `position: fixed; top: 20px; right: 20px; background: rgba(0, 51, 0, 0.95);
+    border: 2px solid #00ff00; padding: 15px; color: #00ff00; text-shadow: 0 0 10px #00ff00;
+    font-family: 'Orbitron', monospace; font-weight: bold; text-transform: uppercase; z-index: 10000;`;
+  logoutDiv.textContent = 'LOGOUT SUCCESSFUL - DATA SAVED';
+  document.body.appendChild(logoutDiv);
+  setTimeout(() => { if (logoutDiv.parentNode) logoutDiv.remove(); }, 3000);
+}
+
+function restartGame() {
+  if (!currentGame) return;
+  
+  // Reset game state and reinitialize current game
+  currentPlayer = 1;
+  gameState = {};
+  updatePlayerNames();
+  
+  const gameConfig = getGameConfig(currentGame);
+  document.getElementById('gameContent').innerHTML = gameConfig.html;
+  if (gameConfig.init) gameConfig.init();
+  
+  // Show restart confirmation
+  const restartDiv = document.createElement('div');
+  restartDiv.style.cssText = `position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: rgba(0, 51, 0, 0.95); border: 2px solid #00ff00; padding: 10px 20px; 
+    color: #00ff00; text-shadow: 0 0 10px #00ff00; font-family: 'Orbitron', monospace; 
+    font-weight: bold; text-transform: uppercase; z-index: 10000;`;
+  restartDiv.textContent = 'GAME RESTARTED';
+  document.body.appendChild(restartDiv);
+  setTimeout(() => { if (restartDiv.parentNode) restartDiv.remove(); }, 2000);
+}
+  
 function checkPassword() {
   const inputPassword = document.getElementById('passwordInput').value;
   if(inputPassword === CORRECT_PASSWORD){
