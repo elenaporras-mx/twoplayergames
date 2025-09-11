@@ -740,8 +740,33 @@ body::before {
   </div>
 </div>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
 <script>
-const CORRECT_PASSWORD = "BandESittingInATree";
+// Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyAbPfydjja8d1Wsfn4O6FciBWb6njE-ckk",
+  authDomain: "playergames-18360.firebaseapp.com",
+  databaseURL: "https://playergames-18360-default-rtdb.firebaseio.com",
+  projectId: "playergames-18360",
+  storageBucket: "playergames-18360.firebasestorage.app",
+  messagingSenderId: "1091542186566",
+  appId: "1:1091542186566:web:6f897cac10a344d4226847"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+
+
+<script>
+const PLAYER1_PASSWORD = "ESittingInATree";
+const PLAYER2_PASSWORD = "BSittingInATree";
+let myPlayerNumber = null;
+let otherPlayerConnected = false;
+  
 let isLoggedIn = false;
 let activityTimeout;
 let lastActivityTime = Date.now();
@@ -841,21 +866,220 @@ window.restartGame = restartGame;
   
 function checkPassword() {
   const inputPassword = document.getElementById('passwordInput').value;
-  if(inputPassword === CORRECT_PASSWORD){
-    isLoggedIn = true;
-    document.getElementById('loginScreen').style.display='none';
-    document.getElementById('gameContainer').style.display='block';
-    document.getElementById('errorMessage').textContent = '';
-    loadData(); // ADD THIS LINE
-    updateGlobalScores(); // ADD THIS LINE  
-    updatePlayerNames(); // ADD THIS LINE
-    try { startActivityMonitor(); } catch(e) { console.error(e); }
+  
+  if(inputPassword === PLAYER1_PASSWORD) {
+    myPlayerNumber = 1;
+    loginAsPlayer(1);
+  } else if(inputPassword === PLAYER2_PASSWORD) {
+    myPlayerNumber = 2;
+    loginAsPlayer(2);
   } else {
     document.getElementById('errorMessage').textContent='ACCESS DENIED - INVALID CODE';
     document.getElementById('passwordInput').value='';
+    return;
   }
 }
 window.checkPassword = checkPassword;
+
+function loginAsPlayer(playerNum) {
+  isLoggedIn = true;
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('gameContainer').style.display='block';
+  document.getElementById('errorMessage').textContent = '';
+  
+  // Connect to Firebase
+  connectToFirebase(playerNum);
+  loadData();
+  updateGlobalScores();
+  updatePlayerNames();
+  try { startActivityMonitor(); } catch(e) { console.error(e); }
+}
+
+//firebase functions
+function connectToFirebase(playerNum) {
+  // Mark this player as connected
+  database.ref(`gameSession/player${playerNum}`).set({
+    name: document.getElementById(`player${playerNum}Name`).value.toUpperCase(),
+    connected: true,
+    lastSeen: firebase.database.ServerValue.TIMESTAMP
+  });
+
+  // Listen for other player's connection status
+  const otherPlayerNum = playerNum === 1 ? 2 : 1;
+  database.ref(`gameSession/player${otherPlayerNum}/connected`).on('value', (snapshot) => {
+    otherPlayerConnected = snapshot.val() || false;
+    updateConnectionStatus();
+  });
+
+  // Listen for game state changes
+  database.ref('gameSession/gameState').on('value', (snapshot) => {
+    if (snapshot.val()) {
+      gameState = snapshot.val();
+      updateGameDisplay();
+    }
+  });
+
+  // Listen for current player changes
+  database.ref('gameSession/currentPlayer').on('value', (snapshot) => {
+    if (snapshot.val()) {
+      currentPlayer = snapshot.val();
+      updatePlayerNames();
+    }
+  });
+
+  // Keep connection alive
+  setInterval(() => {
+    database.ref(`gameSession/player${playerNum}/lastSeen`).set(firebase.database.ServerValue.TIMESTAMP);
+  }, 30000); // Update every 30 seconds
+}
+
+function updateConnectionStatus() {
+  const statusDiv = document.getElementById('connectionStatus') || createStatusDiv();
+  
+  if (otherPlayerConnected) {
+    statusDiv.textContent = 'BOTH PLAYERS CONNECTED';
+    statusDiv.style.color = '#00ff00';
+    statusDiv.style.borderColor = '#00ff00';
+  } else {
+    const otherPlayerNum = myPlayerNumber === 1 ? 2 : 1;
+    statusDiv.textContent = `WAITING FOR PLAYER ${otherPlayerNum}...`;
+    statusDiv.style.color = '#ffff00';
+    statusDiv.style.borderColor = '#ffff00';
+  }
+}
+
+function createStatusDiv() {
+  const statusDiv = document.createElement('div');
+  statusDiv.id = 'connectionStatus';
+  statusDiv.style.cssText = `position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+    background: rgba(0, 17, 0, 0.95); border: 2px solid #ffff00; padding: 10px 20px; 
+    color: #ffff00; text-shadow: 0 0 10px #ffff00; font-family: 'Orbitron', monospace; 
+    font-weight: bold; text-transform: uppercase; z-index: 10000; text-align: center;`;
+  document.body.appendChild(statusDiv);
+  return statusDiv;
+}
+
+function syncGameState() {
+  if (myPlayerNumber) {
+    database.ref('gameSession').update({
+      gameState: gameState,
+      currentPlayer: currentPlayer,
+      currentGame: currentGame
+    });
+  }
+}
+  
+function updateGameDisplay() {
+  if (!currentGame) return;
+  
+  switch(currentGame) {
+    case 'connect4':
+      updateConnect4Display();
+      break;
+      
+    case 'tictactoe':
+      updateTicTacToeDisplay();
+      break;
+      
+    case 'anagrams':
+      if (gameState.currentLetters) {
+        document.getElementById('anagramLetters').textContent = gameState.currentLetters;
+      }
+      if (gameState.player1Score !== undefined) {
+        const resultDiv = document.getElementById('anagramResult');
+        if (gameState.turn === 2 && gameState.player1Score > 0) {
+          resultDiv.innerHTML = `<p>PLAYER 1 SCORED ${gameState.player1Score} POINTS</p><p>PLAYER 2'S TURN!</p>`;
+        } else if (gameState.player2Score !== undefined) {
+          const winner = gameState.player1Score > gameState.player2Score ? 1 : gameState.player2Score > gameState.player1Score ? 2 : 0;
+          let resultText = `FINAL SCORES: P1: ${gameState.player1Score}, P2: ${gameState.player2Score}<br>`;
+          if (winner === 0) resultText += "DRAW RESULT";
+          else resultText += `PLAYER ${winner} VICTORY!`;
+          resultDiv.innerHTML = resultText;
+        }
+      }
+      break;
+      
+    case 'memory':
+      updateMemoryDisplay();
+      break;
+      
+    case 'mathrace':
+      if (gameState.currentProblem) {
+        document.getElementById('mathProblem').textContent = `${gameState.currentProblem.problem} = ?`;
+      }
+      if (gameState.score !== undefined) {
+        document.getElementById('mathScore').textContent = `SCORE: ${gameState.score}`;
+      }
+      if (gameState.timeLeft !== undefined) {
+        document.getElementById('mathTimer').textContent = gameState.timeLeft;
+      }
+      break;
+      
+    case 'dicerace':
+      updateDiceScores();
+      if (gameState.lastRoll) {
+        const diceSymbols = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+        document.getElementById('diceDisplay').textContent = diceSymbols[gameState.lastRoll - 1];
+      }
+      break;
+      
+    case 'sequence':
+      if (gameState.round) {
+        document.getElementById('sequenceScore').textContent = `ROUND: ${gameState.round}`;
+      }
+      if (gameState.sequence && gameState.showingSequence) {
+        showSequence();
+      }
+      break;
+      
+    case 'wordchain':
+      if (gameState.wordChain && gameState.wordChain.length > 0) {
+        document.getElementById('chainDisplay').innerHTML = `<strong>CHAIN:</strong> ${gameState.wordChain.join(' → ')}`;
+        const lastWord = gameState.wordChain[gameState.wordChain.length - 1];
+        const nextLetter = lastWord.slice(-1);
+        document.getElementById('chainResult').innerHTML = `<p>NEXT WORD MUST START WITH "${nextLetter}"</p>`;
+      }
+      break;
+      
+    case 'drawguess':
+      if (gameState.currentPrompt) {
+        document.getElementById('drawPrompt').textContent = gameState.currentPrompt;
+      }
+      break;
+      
+    case 'quickdraw':
+      if (gameState.currentPrompt) {
+        document.getElementById('quickDrawPrompt').textContent = gameState.currentPrompt;
+      }
+      if (gameState.timeLeft !== undefined) {
+        document.getElementById('quickDrawTimer').textContent = gameState.timeLeft;
+      }
+      break;
+  }
+}
+
+function updateMemoryDisplay() {
+  if (!gameState.cards) return;
+  
+  const cards = document.querySelectorAll('#memoryGrid .number-button');
+  cards.forEach((card, index) => {
+    if (gameState.matched && gameState.matched.includes(index)) {
+      card.textContent = gameState.cards[index];
+      card.classList.add('selected');
+    } else if (gameState.flipped && gameState.flipped.includes(index)) {
+      card.textContent = gameState.cards[index];
+      card.classList.add('selected');
+    } else {
+      card.textContent = '?';
+      card.classList.remove('selected');
+    }
+  });
+  
+  updateMemoryScore();
+}
+  
+// non firebase functions below 
+
 
 function startActivityMonitor() {
   lastActivityTime = Date.now();
@@ -962,6 +1186,12 @@ function updatePlayerNames() {
 }
 
 function startGame(gameType) {
+  // Only allow starting games if other player is connected
+  if (!otherPlayerConnected) {
+    alert('WAITING FOR OTHER PLAYER TO CONNECT');
+    return;
+  }
+  
   currentGame = gameType;
   currentPlayer = 1;
   gameState = {};
@@ -971,6 +1201,7 @@ function startGame(gameType) {
   document.getElementById('historyPanel').style.display = 'block';
   document.getElementById('messagesPanel').style.display = 'block';
   updatePlayerNames();
+  syncGameState();
   loadGameHistory(gameType);
   clearMessages();
   const gameConfig = getGameConfig(gameType);
@@ -1124,6 +1355,9 @@ function initConnect4() {
 }
 
 function dropPiece(col) {
+  // Only allow moves if it's your turn and other player is connected
+  if (currentPlayer !== myPlayerNumber || !otherPlayerConnected) return;
+  
   for (let row = 5; row >= 0; row--) {
     if (gameState.board[row][col] === 0) {
       gameState.board[row][col] = gameState.currentPlayer;
@@ -1138,6 +1372,7 @@ function dropPiece(col) {
       gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
       currentPlayer = gameState.currentPlayer;
       updatePlayerNames();
+      syncGameState(); // ADD THIS LINE
       break;
     }
   }
@@ -1190,6 +1425,9 @@ function initTicTacToe() {
 }
 
 function placeMark(index) {
+  // Only allow moves if it's your turn and other player is connected
+  if (currentPlayer !== myPlayerNumber || !otherPlayerConnected) return;
+  
   if (gameState.board[index] !== '') return;
   gameState.board[index] = gameState.currentPlayer === 1 ? 'X' : 'O';
   updateTicTacToeDisplay();
@@ -1204,6 +1442,7 @@ function placeMark(index) {
   gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
   currentPlayer = gameState.currentPlayer;
   updatePlayerNames();
+  syncGameState();
 }
 
 function updateTicTacToeDisplay() {
@@ -1229,6 +1468,9 @@ function initAnagrams() {
 }
 
 function submitAnagram() {
+  // Only allow moves if it's your turn and other player is connected
+  if (currentPlayer !== myPlayerNumber || !otherPlayerConnected) return;
+  
   const word = document.getElementById('anagramInput').value.toUpperCase().trim();
   const letters = gameState.currentLetters;
   if (word.length < 3) { alert('MINIMUM 3 LETTERS REQUIRED'); return; }
@@ -1248,6 +1490,7 @@ function submitAnagram() {
     updatePlayerNames();
     document.getElementById('anagramResult').innerHTML = `<p>PLAYER 1 SCORED ${score} POINTS WITH "${word}"</p><p>PLAYER 2'S TURN!</p>`;
     document.getElementById('anagramInput').value = '';
+    syncGameState(); 
   } else {
     gameState.player2Score = score;
     const winner = gameState.player1Score > gameState.player2Score ? 1 : gameState.player2Score > gameState.player1Score ? 2 : 0;
@@ -1255,6 +1498,7 @@ function submitAnagram() {
     if (winner === 0) resultText += "DRAW RESULT";
     else { resultText += `PLAYER ${winner} VICTORY!`; recordWin(winner, winner === 1 ? gameState.player1Score : gameState.player2Score); }
     document.getElementById('anagramResult').innerHTML = resultText;
+    syncGameState(); 
   }
 }
 
@@ -1279,6 +1523,9 @@ function initMemory() {
 }
 
 function flipCard(index) {
+  // Only allow moves if it's your turn and other player is connected
+  if (currentPlayer !== myPlayerNumber || !otherPlayerConnected) return;
+  
   if (gameState.flipped.length === 2 || gameState.flipped.includes(index) || gameState.matched.includes(index)) return;
   gameState.flipped.push(index);
   const cards = document.querySelectorAll('#memoryGrid .number-button');
@@ -1287,6 +1534,7 @@ function flipCard(index) {
   if (gameState.flipped.length === 2) {
     gameState.moves++;
     updateMemoryScore();
+    syncGameState(); 
     setTimeout(() => {
       const [first, second] = gameState.flipped;
       if (gameState.cards[first] === gameState.cards[second]) {
@@ -1308,6 +1556,7 @@ function flipCard(index) {
         switchPlayer();
       }
       gameState.flipped = [];
+      syncGameState(); 
     }, 1000);
   }
 }
@@ -1454,7 +1703,11 @@ function initDiceRace() {
 }
 
 function rollDice() {
+  // Only allow moves if it's your turn and other player is connected
+  if (currentPlayer !== myPlayerNumber || !otherPlayerConnected) return;
+  
   const roll = Math.floor(Math.random() * 6) + 1;
+  gameState.lastRoll = roll;
   const diceSymbols = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
   document.getElementById('diceDisplay').textContent = diceSymbols[roll - 1];
   if (currentPlayer === 1) gameState.player1Score += roll;
@@ -1470,6 +1723,7 @@ function rollDice() {
   } else {
     switchPlayer();
   }
+  syncGameState();
 }
 
 function updateDiceScores() {
@@ -1551,6 +1805,9 @@ function initWordChain() {
 }
 
 function submitChainWord() {
+  // Only allow moves if it's your turn and other player is connected
+  if (currentPlayer !== myPlayerNumber || !otherPlayerConnected) return;
+  
   const word = document.getElementById('chainInput').value.toUpperCase().trim();
   if (word.length < 2) {
     alert('MINIMUM 2 LETTERS REQUIRED');
@@ -1574,6 +1831,7 @@ function submitChainWord() {
   const nextLetter = word.slice(-1);
   document.getElementById('chainResult').innerHTML = `<p>ACCEPTED! NEXT WORD MUST START WITH "${nextLetter}"</p>`;
   switchPlayer();
+  syncGameState(); 
 }
 
 function initQuickDraw() {
