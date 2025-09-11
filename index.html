@@ -813,6 +813,7 @@ function logout() {
   document.body.appendChild(logoutDiv);
   setTimeout(() => { if (logoutDiv.parentNode) logoutDiv.remove(); }, 3000);
 }
+window.logout = logout;
 
 function restartGame() {
   if (!currentGame) return;
@@ -836,6 +837,7 @@ function restartGame() {
   document.body.appendChild(restartDiv);
   setTimeout(() => { if (restartDiv.parentNode) restartDiv.remove(); }, 2000);
 }
+window.restartGame = restartGame;
   
 function checkPassword() {
   const inputPassword = document.getElementById('passwordInput').value;
@@ -844,6 +846,9 @@ function checkPassword() {
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('gameContainer').style.display='block';
     document.getElementById('errorMessage').textContent = '';
+    loadData(); // ADD THIS LINE
+    updateGlobalScores(); // ADD THIS LINE  
+    updatePlayerNames(); // ADD THIS LINE
     try { startActivityMonitor(); } catch(e) { console.error(e); }
   } else {
     document.getElementById('errorMessage').textContent='ACCESS DENIED - INVALID CODE';
@@ -1024,22 +1029,6 @@ function loadGameHistory(gameType) {
   }).join('');
 }
 
-function saveData() {
-  window.gameData = { gameHistory, globalScores, 
-    player1Name: document.getElementById('player1Name').value,
-    player2Name: document.getElementById('player2Name').value, gameMessages };
-}
-
-function loadData() {
-  if (window.gameData) {
-    const data = window.gameData;
-    gameHistory = data.gameHistory || {};
-    globalScores = data.globalScores || { player1: 0, player2: 0 };
-    gameMessages = data.gameMessages || [];
-    if (data.player1Name) document.getElementById('player1Name').value = data.player1Name;
-    if (data.player2Name) document.getElementById('player2Name').value = data.player2Name;
-  }
-}
 
 function getGameConfig(gameType) {
   const configs = {
@@ -1699,14 +1688,21 @@ function clearMessages() {
   saveData();
 }
 
+
 // Event listeners - SINGLE DEFINITION
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('passwordInput').addEventListener('keypress', e => {
     if(e.key==='Enter') checkPassword();
   });
   document.getElementById('loginButton').addEventListener('click', checkPassword);
-  document.getElementById('player1Name').addEventListener('input', updatePlayerNames);
-  document.getElementById('player2Name').addEventListener('input', updatePlayerNames);
+  document.getElementById('player1Name').addEventListener('input', () => {
+    updatePlayerNames();
+    saveData(); // ADD THIS
+  });
+  document.getElementById('player2Name').addEventListener('input', () => {
+    updatePlayerNames();
+    saveData(); // ADD THIS
+  });
   loadData();
   updateGlobalScores();
   updatePlayerNames();
