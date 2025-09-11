@@ -911,7 +911,10 @@ function loginAsPlayer(playerNum) {
   updatePlayerNames();
 
   // Set initial location to lobby
-  updatePlayerLocation('lobby');
+  setTimeout(() => {
+    updatePlayerLocation('lobby');
+    console.log('Initial location set to lobby');
+  }, 500);
 
   try { startActivityMonitor(); } catch(e) { console.error(e); }
 }
@@ -1476,6 +1479,8 @@ function backToMenu() {
   document.getElementById('gameArea').style.display = 'none';
   document.getElementById('historyPanel').style.display = 'none';
   document.getElementById('messagesPanel').style.display = 'none';
+
+  updatePlayerLocation('lobby');
 }
 
 function switchPlayer() {
@@ -1484,7 +1489,6 @@ function switchPlayer() {
   updatePlayerNames();
   syncGameState();
 
-  updatePlayerLocation('lobby');
 }
 
 function recordWin(winner, score = null, gameSpecificData = null) {
