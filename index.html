@@ -938,12 +938,11 @@ function connectToFirebase(playerNum) {
 
   // Listen for game state changes
   database.ref('gameSession/gameState').on('value', (snapshot) => {
-  if (snapshot.val()) {
-    // Merge instead of overwrite to prevent data loss
-    gameState = { ...gameState, ...snapshot.val() };
-    updateGameDisplay();
-  }
-});
+    if (snapshot.val()) {
+      gameState = { ...gameState, ...snapshot.val() };
+      updateGameDisplay();
+    }
+  });
 
   // Listen for current player changes
   database.ref('gameSession/currentPlayer').on('value', (snapshot) => {
@@ -954,7 +953,7 @@ function connectToFirebase(playerNum) {
     }
   });
 
-  // Keep connection alive and check for stale connections
+  // Keep connection alive
   setInterval(() => {
     playerRef.child('lastSeen').set(firebase.database.ServerValue.TIMESTAMP);
   }, 30000);
@@ -962,16 +961,16 @@ function connectToFirebase(playerNum) {
   // Use Firebase's built-in presence detection
   database.ref('.info/connected').on('value', (snapshot) => {
     if (snapshot.val() === false) {
-      // We're disconnected
       return;
     }
-    // We're connected, ensure our status is set
     playerRef.update({
       connected: true,
       lastSeen: firebase.database.ServerValue.TIMESTAMP
     });
   });
+} 
 
+// MOVE THESE OUTSIDE - they should be global functions
 function updateConnectionStatus() {
   const statusDiv = document.getElementById('connectionStatus') || createStatusDiv();
   
