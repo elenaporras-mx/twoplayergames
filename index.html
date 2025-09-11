@@ -1533,6 +1533,7 @@ function initAnagrams() {
   gameState.player1Score = 0;
   gameState.player2Score = 0;
   gameState.turn = 1;
+  gameState.currentPlayer = 1;
   currentPlayer = 1; 
   syncGameState();
   document.getElementById('anagramLetters').textContent = gameState.currentLetters;
@@ -1559,7 +1560,7 @@ function submitAnagram() {
   if (gameState.turn === 1) {
     gameState.player1Score = score;
     gameState.turn = 2;
-    currentPlayer = 2;
+    gameState.currentPlayer = 2;
     updatePlayerNames();
     document.getElementById('anagramResult').innerHTML = `<p>PLAYER 1 SCORED ${score} POINTS WITH "${word}"</p><p>PLAYER 2'S TURN!</p>`;
     document.getElementById('anagramInput').value = '';
@@ -1583,6 +1584,7 @@ function initMemory() {
   gameState.moves = 0;
   gameState.player1Matches = 0;
   gameState.player2Matches = 0;
+  gameState.currentPlayer = 1;
   currentPlayer = 1; 
   syncGameState();
   const grid = document.getElementById('memoryGrid');
@@ -1599,7 +1601,7 @@ function initMemory() {
 
 function flipCard(index) {
   // Only allow moves if it's your turn and other player is connected
-  if (!gameState.currentPlayer || gameState.currentPlayer !== myPlayerNumber || !otherPlayerConnected) return;
+  if (currentPlayer !== myPlayerNumber || !otherPlayerConnected) return;
   
   if (gameState.flipped.length === 2 || gameState.flipped.includes(index) || gameState.matched.includes(index)) return;
   gameState.flipped.push(index);
@@ -1647,6 +1649,7 @@ function initMathRace() {
   gameState.timeLeft = 60;
   gameState.currentProblem = generateMathProblem();
   gameState.gameActive = true;
+  gameState.currentPlayer = 1;
   currentPlayer = 1; 
   syncGameState();
   displayMathProblem();
@@ -1716,6 +1719,7 @@ function initDrawGuess() {
   const prompts = ['CAT', 'HOUSE', 'CAR', 'TREE', 'SUN', 'FLOWER', 'FISH', 'BIRD', 'BOOK', 'APPLE'];
   gameState.currentPrompt = prompts[Math.floor(Math.random() * prompts.length)];
   document.getElementById('drawPrompt').textContent = gameState.currentPrompt;
+  gameState.currentPlayer = 1;
   currentPlayer = 1; 
   syncGameState();
   const canvas = document.getElementById('drawCanvas');
@@ -1777,6 +1781,7 @@ function nextDrawRound() { switchPlayer(); initDrawGuess(); }
 function initDiceRace() {
   gameState.player1Score = 0;
   gameState.player2Score = 0;
+  gameState.currentPlayer = 1;
   currentPlayer = 1; 
   syncGameState();
   gameState.targetScore = 50;
@@ -1791,7 +1796,7 @@ function rollDice() {
   gameState.lastRoll = roll;
   const diceSymbols = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
   document.getElementById('diceDisplay').textContent = diceSymbols[roll - 1];
-  if (currentPlayer === 1) gameState.player1Score += roll;
+  if (gameState.currentPlayer === 1) gameState.player1Score += roll;  // FIXED
   else gameState.player2Score += roll;
   updateDiceScores();
   if (gameState.player1Score >= gameState.targetScore || gameState.player2Score >= gameState.targetScore) {
@@ -1818,6 +1823,7 @@ function initSequence() {
   gameState.playerSequence = [];
   gameState.round = 1;
   gameState.showingSequence = false;
+  gameState.currentPlayer = 1;
   currentPlayer = 1; 
   syncGameState();
   document.getElementById('sequenceScore').textContent = `ROUND: ${gameState.round}`;
@@ -1882,6 +1888,7 @@ function addToPlayerSequence(colorIndex) {
 function initWordChain() {
   gameState.wordChain = [];
   gameState.usedWords = new Set();
+  gameState.currentPlayer = 1;
   currentPlayer = 1; 
   syncGameState();
   document.getElementById('chainDisplay').textContent = 'START WITH ANY WORD';
@@ -1915,8 +1922,9 @@ function submitChainWord() {
   document.getElementById('chainInput').value = '';
   const nextLetter = word.slice(-1);
   document.getElementById('chainResult').innerHTML = `<p>ACCEPTED! NEXT WORD MUST START WITH "${nextLetter}"</p>`;
+  switchPlayer();
   syncGameState();
-  switchPlayer(); 
+   
 }
 
 function initQuickDraw() {
