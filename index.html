@@ -214,6 +214,7 @@ body::before {
   justify-content: center;
   font-weight: 700;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .score-item {
@@ -660,6 +661,7 @@ body::before {
     <div class="global-score">
       <div class="score-item"><span id="player1GlobalScore">ELENA: 0 WINS</span></div>
       <div class="score-item"><span id="player2GlobalScore">BRYAN: 0 WINS</span></div>
+      <button class="back-button" onclick="logout()" style="margin-left: 20px;">LOGOUT</button>
     </div>
   </div>
 
@@ -710,7 +712,10 @@ body::before {
     <div class="game-header">
       <button class="back-button" onclick="backToMenu()">← TERMINATE</button>
       <h2 id="gameTitle"></h2>
-      <div class="current-player" id="currentPlayer"></div>
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <button class="back-button" onclick="restartGame()" style="background: #003300; color: #00ff00; border-color: #00ff00;">↻ RESTART</button>
+        <div class="current-player" id="currentPlayer"></div>
+      </div>
     </div>
     <div id="gameContent"></div>
   </div>
