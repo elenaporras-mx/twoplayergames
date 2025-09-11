@@ -909,6 +909,10 @@ function loginAsPlayer(playerNum) {
   loadData();
   updateGlobalScores();
   updatePlayerNames();
+
+  // Set initial location to lobby
+  updatePlayerLocation('lobby');
+
   try { startActivityMonitor(); } catch(e) { console.error(e); }
 }
 
@@ -932,7 +936,6 @@ function connectToFirebase(playerNum) {
   }).catch((error) => {
     console.error(`Error marking player ${playerNum} as connected:`, error);
   });
-
   // Listen for other player's connection status
   const otherPlayerNum = playerNum === 1 ? 2 : 1;
   database.ref(`gameSession/player${otherPlayerNum}/connected`).on('value', (snapshot) => {
@@ -956,7 +959,26 @@ function connectToFirebase(playerNum) {
       setTimeout(() => { if (connectDiv.parentNode) connectDiv.remove(); }, 3000);
     }
   });
-
+  //Listen for player's location
+  const otherPlayerNum = playerNum === 1 ? 2 : 1;
+  database.ref(`gameSession/player${otherPlayerNum}`).on('value', (snapshot) => {
+    const otherPlayerData = snapshot.val();
+    const wasConnected = otherPlayerConnected;
+    
+    if (otherPlayerData) {
+      otherPlayerConnected = otherPlayerData.connected === true;
+      updateConnectionStatus(otherPlayerData);
+      
+      // Show temporary "both players connected" notification
+      if (!wasConnected && otherPlayerConnected) {
+        showTemporaryNotification('BOTH PLAYERS CONNECTED!', '#00ff00', 3000);
+      }
+    } else {
+      otherPlayerConnected = false;
+      updateConnectionStatus(null);
+    }
+  });
+  
   // Listen for game state changes
   database.ref('gameSession/gameState').on('value', (snapshot) => {
     if (snapshot.val()) {
@@ -1073,22 +1095,81 @@ database.ref('gameSession/messages').on('child_added', (snapshot) => {
   });
 }
 
+function showTemporaryNotification(message, color = '#00ff00', duration = 3000) {
+  const notificationDiv = document.createElement('div');
+  notificationDiv.style.cssText = `position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: rgba(0, 51, 0, 0.95); border: 2px solid ${color}; padding: 15px; 
+    color: ${color}; text-shadow: 0 0 10px ${color}; font-family: 'Orbitron', monospace; 
+    font-weight: bold; text-transform: uppercase; z-index: 10001; border-radius: 3px;
+    animation: slideDown 0.3s ease-out;`;
+  
+  // Add slide-down animation
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes slideDown {
+      from { transform: translateX(-50%) translateY(-100%); opacity: 0; }
+      to { transform: translateX(-50%) translateY(0); opacity: 1; }
+    }
+  `;
+  if (!document.querySelector('style[data-slidedown]')) {
+    style.setAttribute('data-slidedown', 'true');
+    document.head.appendChild(style);
+  }
+  
+  notificationDiv.textContent = message;
+  document.body.appendChild(notificationDiv);
+  
+  // Auto-remove after specified duration
+  setTimeout(() => { 
+    if (notificationDiv.parentNode) {
+      notificationDiv.style.animation = 'slideDown 0.3s ease-out reverse';
+      setTimeout(() => notificationDiv.remove(), 300);
+    }
+  }, duration);
+}
+
 // MOVE THESE OUTSIDE - they should be global functions
-function updateConnectionStatus() {
+function updateConnectionStatus(otherPlayerData) {
   const statusDiv = document.getElementById('connectionStatus') || createStatusDiv();
   
-  console.log('Updating connection status. Other player connected:', otherPlayerConnected);
-  
-  if (otherPlayerConnected) {
-    statusDiv.textContent = 'BOTH PLAYERS CONNECTED';
-    statusDiv.style.color = '#00ff00';
-    statusDiv.style.borderColor = '#00ff00';
-  } else {
+  if (!otherPlayerConnected || !otherPlayerData) {
     const otherPlayerNum = myPlayerNumber === 1 ? 2 : 1;
     statusDiv.textContent = `WAITING FOR PLAYER ${otherPlayerNum}...`;
     statusDiv.style.color = '#ffff00';
     statusDiv.style.borderColor = '#ffff00';
+    return;
   }
+  
+  // Get player names
+  const myName = document.getElementById(`player${myPlayerNumber}Name`).value.toUpperCase();
+  const otherName = otherPlayerData.name || `PLAYER ${myPlayerNumber === 1 ? 2 : 1}`;
+  
+  // Get other player's location
+  const otherLocation = otherPlayerData.location || 'lobby';
+  let locationText;
+  
+  if (otherLocation === 'lobby') {
+    locationText = 'IN LOBBY';
+  } else {
+    // Convert game type to readable name
+    const gameNames = {
+      'connect4': 'CONNECT 4',
+      'tictactoe': 'TIC TAC TOE',
+      'anagrams': 'ANAGRAMS',
+      'memory': 'MEMORY MATCH',
+      'mathrace': 'MATH RACE',
+      'drawguess': 'DRAW & GUESS',
+      'dicerace': 'DICE RACE',
+      'sequence': 'SEQUENCE MEMORY',
+      'wordchain': 'WORD CHAIN',
+      'quickdraw': 'QUICK DRAW'
+    };
+    locationText = `IN ${gameNames[otherLocation] || otherLocation.toUpperCase()}`;
+  }
+  
+  statusDiv.textContent = `${otherName} ${locationText}`;
+  statusDiv.style.color = '#00ffff';
+  statusDiv.style.borderColor = '#00ffff';
 }
 
 function createStatusDiv() {
@@ -1118,6 +1199,15 @@ function syncGameState() {
       errorDiv.textContent = 'CONNECTION ERROR - RETRYING...';
       document.body.appendChild(errorDiv);
       setTimeout(() => { if (errorDiv.parentNode) errorDiv.remove(); }, 3000);
+    });
+  }
+}
+
+function updatePlayerLocation(location) {
+  if (myPlayerNumber) {
+    database.ref(`gameSession/player${myPlayerNumber}`).update({
+      location: location,
+      lastSeen: firebase.database.ServerValue.TIMESTAMP
     });
   }
 }
@@ -1377,6 +1467,8 @@ function startGame(gameType) {
   document.getElementById('gameTitle').textContent = gameConfig.title;
   document.getElementById('gameContent').innerHTML = gameConfig.html;
   if (gameConfig.init) gameConfig.init();
+
+  updatePlayerLocation(gameType);
 }
 
 function backToMenu() {
@@ -1392,6 +1484,8 @@ function switchPlayer() {
   gameState.currentPlayer = currentPlayer;
   updatePlayerNames();
   syncGameState();
+
+  updatePlayerLocation('lobby');
 }
 
 function recordWin(winner, score = null, gameSpecificData = null) {
