@@ -927,13 +927,34 @@ function connectToFirebase(playerNum) {
     name: document.getElementById(`player${playerNum}Name`).value.toUpperCase(),
     connected: true,
     lastSeen: firebase.database.ServerValue.TIMESTAMP
+  }).then(() => {
+    console.log(`Player ${playerNum} successfully marked as connected`);
+  }).catch((error) => {
+    console.error(`Error marking player ${playerNum} as connected:`, error);
   });
 
   // Listen for other player's connection status
   const otherPlayerNum = playerNum === 1 ? 2 : 1;
   database.ref(`gameSession/player${otherPlayerNum}/connected`).on('value', (snapshot) => {
-    otherPlayerConnected = snapshot.val() || false;
+    const previousState = otherPlayerConnected;
+    otherPlayerConnected = snapshot.val() === true; // Ensure boolean conversion
+    
+    console.log(`Other player (${otherPlayerNum}) connection changed from ${previousState} to ${otherPlayerConnected}`);
+    
+    // Update connection status display
     updateConnectionStatus();
+    
+    // If other player just connected, show notification
+    if (!previousState && otherPlayerConnected) {
+      const connectDiv = document.createElement('div');
+      connectDiv.style.cssText = `position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+        background: rgba(0, 51, 0, 0.95); border: 2px solid #00ff00; padding: 15px; 
+        color: #00ff00; text-shadow: 0 0 10px #00ff00; font-family: 'Orbitron', monospace; 
+        font-weight: bold; text-transform: uppercase; z-index: 10000;`;
+      connectDiv.textContent = `PLAYER ${otherPlayerNum} CONNECTED!`;
+      document.body.appendChild(connectDiv);
+      setTimeout(() => { if (connectDiv.parentNode) connectDiv.remove(); }, 3000);
+    }
   });
 
   // Listen for game state changes
@@ -953,26 +974,55 @@ function connectToFirebase(playerNum) {
     }
   });
 
-  // Keep connection alive
-  setInterval(() => {
-    playerRef.child('lastSeen').set(firebase.database.ServerValue.TIMESTAMP);
+  // Listen for current game changes
+  database.ref('gameSession/currentGame').on('value', (snapshot) => {
+    if (snapshot.val() && snapshot.val() !== currentGame) {
+      console.log(`Game changed to ${snapshot.val()}`);
+      // Optionally sync to the new game state
+    }
+  });
+
+  // Keep connection alive with heartbeat
+  const heartbeat = setInterval(() => {
+    if (isLoggedIn) {
+      playerRef.child('lastSeen').set(firebase.database.ServerValue.TIMESTAMP);
+    } else {
+      clearInterval(heartbeat);
+    }
   }, 30000);
   
   // Use Firebase's built-in presence detection
   database.ref('.info/connected').on('value', (snapshot) => {
-    if (snapshot.val() === false) {
-      return;
+    if (snapshot.val() === true) {
+      console.log('Connected to Firebase');
+      // When we connect, make sure our status is set correctly
+      playerRef.update({
+        connected: true,
+        lastSeen: firebase.database.ServerValue.TIMESTAMP
+      });
+    } else {
+      console.log('Disconnected from Firebase');
     }
-    playerRef.update({
-      connected: true,
-      lastSeen: firebase.database.ServerValue.TIMESTAMP
-    });
   });
-} 
+
+  // Also listen to our own connection status for debugging
+  playerRef.child('connected').on('value', (snapshot) => {
+    console.log(`This player (${playerNum}) connected status:`, snapshot.val());
+  });
+
+  // After setting up all listeners, do an initial check of other player's status
+  database.ref(`gameSession/player${otherPlayerNum}/connected`).once('value', (snapshot) => {
+    otherPlayerConnected = snapshot.val() === true;
+    console.log(`Initial check - other player connected: ${otherPlayerConnected}`);
+    updateConnectionStatus();
+  });
+}
 
 // MOVE THESE OUTSIDE - they should be global functions
 function updateConnectionStatus() {
   const statusDiv = document.getElementById('connectionStatus') || createStatusDiv();
+  
+  console.log('Updating connection status. Other player connected:', otherPlayerConnected);
   
   if (otherPlayerConnected) {
     statusDiv.textContent = 'BOTH PLAYERS CONNECTED';
