@@ -498,6 +498,10 @@ body::before {
   box-shadow: 0 0 10px #00ff00;
 }
 
+.sound-sidebar, .sound-toggle {
+  display: none;
+}
+
 /* GAME RESULT SCREENS */
 .game-result-overlay {
   position: fixed;
@@ -1563,6 +1567,49 @@ function showTemporaryNotification(message, color = '#00ff00', duration = 3000) 
 }
 // Audio Funcs 
 
+function updateVolume() {
+  const volumeSlider = document.getElementById('volumeSlider');
+  soundVolume = volumeSlider.value / 100;
+  document.getElementById('volumeDisplay').textContent = `${volumeSlider.value}%`;
+}
+
+function playNetworkSound(soundName) {
+  if (myPlayerNumber) {
+    database.ref('gameSession/soundEffect').set({
+      sound: soundName.toUpperCase(),
+      player: myPlayerNumber,
+      timestamp: Date.now()
+    });
+  }
+}
+
+// Initialize sound volume
+let soundVolume = 0.5;
+
+function showSoundControls() {
+  const soundToggle = document.getElementById('soundToggle');
+  const soundSidebar = document.getElementById('soundSidebar');
+  
+  soundToggle.style.display = 'block';
+  soundSidebar.style.display = 'block';
+}
+
+function hideSoundControls() {
+  const soundToggle = document.getElementById('soundToggle');
+  const soundSidebar = document.getElementById('soundSidebar');
+  
+  soundToggle.style.display = 'none';
+  soundSidebar.style.display = 'none';
+  // Also close sidebar if it's open
+  soundSidebar.classList.remove('open');
+}
+
+function toggleSoundSidebar() {
+  const sidebar = document.getElementById('soundSidebar');
+  sidebar.classList.toggle('open');
+}
+window.toggleSoundSidebar = toggleSoundSidebar;
+
 function getSoundFrequency(soundName) {
   const frequencies = {
     clapping: 800,
@@ -2036,6 +2083,9 @@ function startGame(gameType) {
   document.getElementById('gameArea').style.display = 'block';
   document.getElementById('historyPanel').style.display = 'block';
   document.getElementById('messagesPanel').style.display = 'block';
+  
+  showSoundControls();
+  
   updatePlayerNames();
   syncGameState();
   loadGameHistory(gameType);
@@ -2077,6 +2127,8 @@ function backToMenu() {
   // Always show the games grid
   document.getElementById('gamesGrid').style.display = 'grid';
   document.getElementById('gameArea').style.display = 'none';
+
+  hideSoundControls();
   
   // Only hide chat and history if other player isn't connected
   // If other player is connected, keep them visible for communication
@@ -3198,7 +3250,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('passwordInput').addEventListener('keypress', e => {
     if(e.key==='Enter') checkPassword();
   });
-  
+
   // Initialize audio context on first user interaction
   document.addEventListener('click', function initAudio() {
     if (!window.audioContext) {
@@ -3206,6 +3258,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     document.removeEventListener('click', initAudio);
   }, { once: true });
+  hideSoundControls();
 
   // Only allow players to edit their own names
   document.getElementById('player1Name').addEventListener('input', (e) => {
