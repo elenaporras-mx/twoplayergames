@@ -769,6 +769,7 @@ let otherPlayerConnected = false;
 let isLoggedIn = false;
 let activityTimeout;
 let lastActivityTime = Date.now();
+let gameResultHandled = false;
 const TIMEOUT_DURATION = 15 * 60 * 1000;
 
 // Global functions
@@ -846,6 +847,8 @@ function logout() {
   // Save data before logout
   saveData();
   
+  database.ref('gameSession/gameResult').remove();
+
   // Clear timeout and reset login state
   clearTimeout(activityTimeout);
   currentGame = null;
@@ -1060,6 +1063,29 @@ function connectToFirebase(playerNum) {
     }
   });
 
+  // Listen for game results
+  const gameResultListener = database.ref('gameSession/gameResult').on('value', (snapshot) => {
+    if (!isLoggedIn) return;
+    const result = snapshot.val();
+    if (result && !gameResultHandled) {
+      gameResultHandled = true;
+      setTimeout(() => {
+        alert(result.message);
+        if (result.recordWin) {
+          recordWin(result.winner, result.score, result.gameSpecificData);
+        }
+        // Clear the result after handling
+        database.ref('gameSession/gameResult').remove();
+        gameResultHandled = false;
+      }, 100);
+    }
+  });
+
+  window.firebaseListeners.push({
+    ref: database.ref('gameSession/gameResult'),
+    callback: gameResultListener
+  });
+
   // Keep connection alive
   const heartbeat = setInterval(() => {
     if (isLoggedIn) {
@@ -1104,6 +1130,19 @@ function showTemporaryNotification(message, color = '#00ff00', duration = 3000) 
       setTimeout(() => notificationDiv.remove(), 300);
     }
   }, duration);
+}
+
+function syncGameResult(winner, message, score = null, gameSpecificData = null, shouldRecordWin = true) {
+  if (myPlayerNumber) {
+    database.ref('gameSession/gameResult').set({
+      winner: winner,
+      message: message,
+      score: score,
+      gameSpecificData: gameSpecificData,
+      recordWin: shouldRecordWin,
+      timestamp: Date.now()
+    });
+  }
 }
 
 // MOVE THESE OUTSIDE - they should be global functions
@@ -1670,10 +1709,7 @@ function dropPiece(col) {
       gameState.board[row][col] = gameState.currentPlayer;
       updateConnect4Display();
       if (checkConnect4Win(row, col)) {
-        setTimeout(() => { 
-          alert(`PLAYER ${gameState.currentPlayer} VICTORY!`); 
-          recordWin(gameState.currentPlayer); 
-        }, 100);
+        syncGameResult(gameState.currentPlayer, `PLAYER ${gameState.currentPlayer} VICTORY!`);
         return;
       }
       gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
@@ -1741,11 +1777,11 @@ function placeMark(index) {
   gameState.board[index] = gameState.currentPlayer === 1 ? 'X' : 'O';
   updateTicTacToeDisplay();
   if (checkTicTacToeWin()) {
-    setTimeout(() => { alert(`PLAYER ${gameState.currentPlayer} VICTORY!`); recordWin(gameState.currentPlayer); }, 100);
+    syncGameResult(gameState.currentPlayer, `PLAYER ${gameState.currentPlayer} VICTORY!`);
     return;
   }
   if (gameState.board.every(cell => cell !== '')) {
-    setTimeout(() => alert("DRAW - NO WINNER"), 100);
+    syncGameResult(0, "DRAW - NO WINNER", null, null, false);
     return;
   }
   gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
@@ -1807,8 +1843,16 @@ function submitAnagram() {
     gameState.player2Score = score;
     const winner = gameState.player1Score > gameState.player2Score ? 1 : gameState.player2Score > gameState.player1Score ? 2 : 0;
     let resultText = `PLAYER 2 SCORED ${score} POINTS WITH "${word}"<br>FINAL SCORES: P1: ${gameState.player1Score}, P2: ${gameState.player2Score}<br>`;
-    if (winner === 0) resultText += "DRAW RESULT";
-    else { resultText += `PLAYER ${winner} VICTORY!`; recordWin(winner, winner === 1 ? gameState.player1Score : gameState.player2Score); }
+    
+    if (winner === 0) {
+      resultText += "DRAW RESULT";
+      syncGameResult(0, resultText, null, null, false);
+    } else {
+      resultText += `PLAYER ${winner} VICTORY!`;
+      const winningScore = winner === 1 ? gameState.player1Score : gameState.player2Score;
+      syncGameResult(winner, resultText, winningScore);
+    }
+    
     document.getElementById('anagramResult').innerHTML = resultText;
     syncGameState(); 
   }
@@ -1859,8 +1903,12 @@ function flipCard(index) {
         if (gameState.matched.length === 16) {
           const winner = gameState.player1Matches > gameState.player2Matches ? 1 : gameState.player2Matches > gameState.player1Matches ? 2 : 0;
           setTimeout(() => {
-            if (winner === 0) alert("DRAW RESULT");
-            else { alert(`PLAYER ${winner} VICTORY WITH ${winner === 1 ? gameState.player1Matches : gameState.player2Matches} MATCHES!`); recordWin(winner, winner === 1 ? gameState.player1Matches : gameState.player2Matches); }
+            if (winner === 0) {
+              syncGameResult(0, "DRAW RESULT", null, null, false);
+            } else {
+              const matches = winner === 1 ? gameState.player1Matches : gameState.player2Matches;
+              syncGameResult(winner, `PLAYER ${winner} VICTORY WITH ${matches} MATCHES!`, matches);
+            }
           }, 500);
         }
       } else {
@@ -1941,8 +1989,12 @@ function startMathTimer() {
       } else {
         const winner = gameState.player1FinalScore > gameState.score ? 1 : gameState.score > gameState.player1FinalScore ? 2 : 0;
         setTimeout(() => {
-          if (winner === 0) alert("DRAW RESULT");
-          else { const winningScore = winner === 1 ? gameState.player1FinalScore : gameState.score; alert(`PLAYER ${winner} VICTORY WITH ${winningScore} POINTS!`); recordWin(winner, winningScore); }
+          if (winner === 0) {
+            syncGameResult(0, "DRAW RESULT", null, null, false);
+          } else {
+            const winningScore = winner === 1 ? gameState.player1FinalScore : gameState.score;
+            syncGameResult(winner, `PLAYER ${winner} VICTORY WITH ${winningScore} POINTS!`, winningScore);
+          }
         }, 1000);
       }
     }
@@ -2041,8 +2093,7 @@ function rollDice() {
     const winner = gameState.player1Score >= gameState.targetScore ? 1 : 2;
     const winningScore = winner === 1 ? gameState.player1Score : gameState.player2Score;
     setTimeout(() => {
-      alert(`PLAYER ${winner} VICTORY WITH ${winningScore} POINTS!`);
-      recordWin(winner, winningScore);
+      syncGameResult(winner, `PLAYER ${winner} VICTORY WITH ${winningScore} POINTS!`, winningScore);
     }, 500);
   } else {
     switchPlayer();
@@ -2107,16 +2158,14 @@ function addToPlayerSequence(colorIndex) {
   if (gameState.showingSequence) return;
   gameState.playerSequence.push(colorIndex);
   if (gameState.playerSequence[gameState.playerSequence.length - 1] !== gameState.sequence[gameState.playerSequence.length - 1]) {
-    alert(`SEQUENCE ERROR! PLAYER ${currentPlayer} SCORED ${gameState.round - 1} POINTS!`);
-    recordWin(currentPlayer, gameState.round - 1);
+    syncGameResult(currentPlayer, `SEQUENCE ERROR! PLAYER ${currentPlayer} SCORED ${gameState.round - 1} POINTS!`, gameState.round - 1);
     return;
   }
   if (gameState.playerSequence.length === gameState.sequence.length) {
     gameState.round++;
     document.getElementById('sequenceScore').textContent = `ROUND: ${gameState.round}`;
     if (gameState.round > 10) {
-      alert(`MAXIMUM ROUNDS COMPLETED! PLAYER ${currentPlayer} ACHIEVED PERFECT SCORE!`);
-      recordWin(currentPlayer, 10);
+      syncGameResult(currentPlayer, `MAXIMUM ROUNDS COMPLETED! PLAYER ${currentPlayer} ACHIEVED PERFECT SCORE!`, 10);
     } else {
       setTimeout(() => startSequenceRound(), 1000);
     }
