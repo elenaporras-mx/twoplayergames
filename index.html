@@ -373,6 +373,131 @@ body::before {
   text-shadow: none;
 }
 
+/* SOUND EFFECTS SIDEBAR */
+.sound-sidebar {
+  position: fixed;
+  right: -200px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 200px;
+  background: rgba(0, 17, 0, 0.95);
+  border: 3px solid #00ff00;
+  border-right: none;
+  padding: 20px;
+  transition: right 0.3s ease;
+  z-index: 9999;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.sound-sidebar.open {
+  right: 0;
+}
+
+.sound-toggle {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 17, 0, 0.95);
+  border: 3px solid #00ff00;
+  border-right: none;
+  padding: 10px 5px;
+  color: #00ff00;
+  cursor: pointer;
+  z-index: 10000;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-family: 'Orbitron', monospace;
+  font-weight: bold;
+  text-transform: uppercase;
+  transition: all 0.2s;
+}
+
+.sound-toggle:hover {
+  background: #00ff00;
+  color: #000;
+  box-shadow: 0 0 15px #00ff00;
+}
+
+.sound-effects-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.sound-button {
+  background: #003300;
+  color: #00ff00;
+  border: 2px solid #00ff00;
+  padding: 8px 12px;
+  font-family: 'Orbitron', monospace;
+  font-size: 0.7em;
+  font-weight: bold;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.sound-button:hover {
+  background: #00ff00;
+  color: #000;
+  box-shadow: 0 0 10px #00ff00;
+}
+
+.sound-button:active {
+  transform: scale(0.95);
+}
+
+.sound-header {
+  color: #00ffff;
+  text-transform: uppercase;
+  font-weight: bold;
+  margin-bottom: 15px;
+  text-align: center;
+  font-size: 0.9em;
+  text-shadow: 0 0 10px #00ffff;
+}
+
+.sound-volume {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 2px solid #00ff00;
+}
+
+.volume-slider {
+  width: 100%;
+  margin: 10px 0;
+  background: #000;
+  border: 1px solid #00ff00;
+  height: 20px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: #00ff00;
+  cursor: pointer;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #00ff00;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: #00ff00;
+  cursor: pointer;
+  border-radius: 50%;
+  border: none;
+  box-shadow: 0 0 10px #00ff00;
+}
+
 /* GAME RESULT SCREENS */
 .game-result-overlay {
   position: fixed;
@@ -955,7 +1080,27 @@ body::before {
       <button class="send-message" onclick="sendMessage()">TRANSMIT</button>
     </div>
   </div>
+
+  <!-- Sound Effects Sidebar -->
+  <div class="sound-toggle" id="soundToggle" onclick="toggleSoundSidebar()">SOUNDS</div>
+  <div class="sound-sidebar" id="soundSidebar">
+    <div class="sound-header">█ SOUND FX</div>
+    <div class="sound-effects-grid" style="grid-template-columns: 1fr; gap: 15px;">
+      <button class="sound-button" onclick="playNetworkSound('clapping')" style="padding: 12px;">👏 CLAPPING</button>
+      <button class="sound-button" onclick="playNetworkSound('womp')" style="padding: 12px;">📉 WOMP WOMP</button>
+      <button class="sound-button" onclick="playNetworkSound('horn')" style="padding: 12px;">🎺 HAPPY HORN</button>
+    </div>
+    <div class="sound-volume">
+      <div style="color: #ffff00; font-size: 0.8em; text-transform: uppercase; margin-bottom: 5px;">Volume</div>
+      <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="50" onchange="updateVolume()">
+      <div style="color: #00ff00; font-size: 0.7em; text-align: center; margin-top: 5px;" id="volumeDisplay">50%</div>
+    </div>
+  </div>
+
+  <!-- Audio Elements -->
+  <div id="audioElements" style="display: none;"></div>
 </div>
+
 
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -1314,6 +1459,43 @@ function connectToFirebase(playerNum) {
     }
   });
 
+  // Listen for sound effects
+  const soundEffectListener = database.ref('gameSession/soundEffect').on('value', (snapshot) => {
+    if (!isLoggedIn) return;
+    const soundData = snapshot.val();
+    if (soundData && soundData.timestamp) {
+      // Play sound locally for both players
+      playLocalSound(soundData.sound);
+      
+      // Show sound notification
+      const player1Name = (document.getElementById('player1Name').value || 'ELENA').toUpperCase();
+      const player2Name = (document.getElementById('player2Name').value || 'BRYAN').toUpperCase();
+      const playerName = soundData.player === 1 ? player1Name : player2Name;
+      
+      const soundNotification = document.createElement('div');
+      soundNotification.style.cssText = `position: fixed; top: 100px; right: 20px; 
+        background: rgba(0, 51, 0, 0.9); border: 2px solid #00ffff; padding: 8px; 
+        color: #00ffff; text-shadow: 0 0 5px #00ffff; font-family: 'Orbitron', monospace; 
+        font-size: 0.7em; z-index: 10000; text-transform: uppercase; border-radius: 3px;`;
+      soundNotification.textContent = `${playerName}: ${soundData.sound}`;
+      document.body.appendChild(soundNotification);
+      
+      setTimeout(() => { 
+        if (soundNotification.parentNode) soundNotification.remove(); 
+      }, 1500);
+      
+      // Clear the sound after playing
+      setTimeout(() => {
+        database.ref('gameSession/soundEffect').remove();
+      }, 100);
+    }
+  });
+
+  window.firebaseListeners.push({
+    ref: database.ref('gameSession/soundEffect'),
+    callback: soundEffectListener
+  });
+
   // Listen for game results
   const gameResultListener = database.ref('gameSession/gameResult').on('value', (snapshot) => {
     if (!isLoggedIn) return;
@@ -1378,6 +1560,114 @@ function showTemporaryNotification(message, color = '#00ff00', duration = 3000) 
       setTimeout(() => notificationDiv.remove(), 300);
     }
   }, duration);
+}
+// Audio Funcs 
+
+function getSoundFrequency(soundName) {
+  const frequencies = {
+    clapping: 800,
+    womp: 200,
+    horn: 600
+  };
+  return frequencies[soundName] || 800;
+}
+
+function getSoundDuration(soundName) {
+  const durations = {
+    clapping: 0.6,  // Longer for clapping effect
+    womp: 1.0,      // Longer for sad trombone effect
+    horn: 0.8       // Medium length for celebration
+  };
+  return durations[soundName] || 0.1;
+}
+
+function getSoundWaveType(soundName) {
+  const waveTypes = {
+    clapping: 'square',    // Sharp sound for claps
+    womp: 'sawtooth',      // Rough sound for disappointment
+    horn: 'triangle'       // Smooth sound for celebration
+  };
+  return waveTypes[soundName] || 'sine';
+}
+
+function playLocalSound(soundName) {
+  if (!window.audioContext) {
+    window.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  
+  if (soundName === 'clapping') {
+    playClappingSound();
+  } else if (soundName === 'womp') {
+    playWompSound();
+  } else if (soundName === 'horn') {
+    playHornSound();
+  }
+}
+
+function playClappingSound() {
+  // Multiple quick bursts to simulate clapping
+  for (let i = 0; i < 4; i++) {
+    setTimeout(() => {
+      const oscillator = window.audioContext.createOscillator();
+      const gainNode = window.audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(window.audioContext.destination);
+      
+      oscillator.frequency.value = 800 + Math.random() * 200;
+      oscillator.type = 'square';
+      
+      gainNode.gain.setValueAtTime(soundVolume * 0.3, window.audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, window.audioContext.currentTime + 0.1);
+      
+      oscillator.start(window.audioContext.currentTime);
+      oscillator.stop(window.audioContext.currentTime + 0.1);
+    }, i * 150);
+  }
+}
+
+function playWompSound() {
+  // Descending sad trombone sound
+  const oscillator = window.audioContext.createOscillator();
+  const gainNode = window.audioContext.createGain();
+  
+  oscillator.connect(gainNode);
+  gainNode.connect(window.audioContext.destination);
+  
+  oscillator.frequency.setValueAtTime(300, window.audioContext.currentTime);
+  oscillator.frequency.exponentialRampToValueAtTime(150, window.audioContext.currentTime + 1.0);
+  oscillator.type = 'sawtooth';
+  
+  gainNode.gain.setValueAtTime(soundVolume * 0.4, window.audioContext.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, window.audioContext.currentTime + 1.0);
+  
+  oscillator.start(window.audioContext.currentTime);
+  oscillator.stop(window.audioContext.currentTime + 1.0);
+}
+
+function playHornSound() {
+  // Three ascending notes: do-do-doo
+  const notes = [523, 523, 659]; // C5, C5, E5
+  const durations = [0.2, 0.2, 0.4];
+  
+  notes.forEach((frequency, index) => {
+    setTimeout(() => {
+      const oscillator = window.audioContext.createOscillator();
+      const gainNode = window.audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(window.audioContext.destination);
+      
+      oscillator.frequency.value = frequency;
+      oscillator.type = 'triangle';
+      
+      gainNode.gain.setValueAtTime(soundVolume * 0.4, window.audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, window.audioContext.currentTime + durations[index]);
+      
+      oscillator.start(window.audioContext.currentTime);
+      oscillator.stop(window.audioContext.currentTime + durations[index]);
+    }, index * 250);
+  });
 }
 
 function syncGameResult(winner, message, score = null, gameSpecificData = null) {
@@ -2908,6 +3198,15 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('passwordInput').addEventListener('keypress', e => {
     if(e.key==='Enter') checkPassword();
   });
+  
+  // Initialize audio context on first user interaction
+  document.addEventListener('click', function initAudio() {
+    if (!window.audioContext) {
+      window.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    document.removeEventListener('click', initAudio);
+  }, { once: true });
+
   // Only allow players to edit their own names
   document.getElementById('player1Name').addEventListener('input', (e) => {
     if (myPlayerNumber !== 1) {
