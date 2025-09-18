@@ -1146,7 +1146,7 @@ function saveData() {
     player1Name: document.getElementById('player1Name').value,
     player2Name: document.getElementById('player2Name').value, 
     gameMessages,
-    profilePictures  // ADD THIS LINE
+    profilePictures: profilePictures || { player1: null, player2: null }
   };
   sessionStorage.setItem('gameHubData', JSON.stringify(window.gameData));
 }
@@ -1439,9 +1439,15 @@ function connectToFirebase(playerNum) {
     const otherPlayerData = snapshot.val();
     
     if (otherPlayerData) {
+      const wasConnected = otherPlayerConnected;
+      
       // Update other player's profile picture
       if (otherPlayerData.profilePicture) {
         updateProfileDisplay(otherPlayerNum, otherPlayerData.profilePicture);
+        // Also save to local storage for persistence
+        if (!profilePictures) profilePictures = {};
+        profilePictures[`player${otherPlayerNum}`] = otherPlayerData.profilePicture;
+        saveData();
       }
       
       // Update other player's name
@@ -1450,7 +1456,7 @@ function connectToFirebase(playerNum) {
         updatePlayerNames();
       }
       
-      // Existing connection status code...
+      // Update connection status
       otherPlayerConnected = otherPlayerData.connected === true;
       updateConnectionStatus(otherPlayerData);
       
@@ -1567,13 +1573,45 @@ function showTemporaryNotification(message, color = '#00ff00', duration = 3000) 
 }
 // Audio Funcs 
 
+let audioInitialized = false;
+
+async function initializeAudio() {
+  if (audioInitialized) return true;
+  
+  try {
+    if (!window.audioContext) {
+      window.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    
+    // Resume context if it's suspended (required by browsers)
+    if (window.audioContext.state === 'suspended') {
+      await window.audioContext.resume();
+    }
+    
+    audioInitialized = true;
+    console.log('Audio initialized successfully');
+    return true;
+  } catch (error) {
+    console.error('Failed to initialize audio:', error);
+    return false;
+  }
+}
+
 function updateVolume() {
   const volumeSlider = document.getElementById('volumeSlider');
   soundVolume = volumeSlider.value / 100;
   document.getElementById('volumeDisplay').textContent = `${volumeSlider.value}%`;
 }
 
-function playNetworkSound(soundName) {
+async function playNetworkSound(soundName) {
+  // First initialize audio
+  const initialized = await initializeAudio();
+  if (!initialized) {
+    alert('AUDIO INITIALIZATION FAILED - CHECK BROWSER PERMISSIONS');
+    return;
+  }
+
+  // Then send to network
   if (myPlayerNumber) {
     database.ref('gameSession/soundEffect').set({
       sound: soundName.toUpperCase(),
@@ -1637,84 +1675,104 @@ function getSoundWaveType(soundName) {
   return waveTypes[soundName] || 'sine';
 }
 
-function playLocalSound(soundName) {
-  if (!window.audioContext) {
-    window.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+async function playLocalSound(soundName) {
+  const initialized = await initializeAudio();
+  if (!initialized) {
+    console.error('Cannot play sound - audio initialization failed');
+    return;
   }
   
-  if (soundName === 'clapping') {
-    playClappingSound();
-  } else if (soundName === 'womp') {
-    playWompSound();
-  } else if (soundName === 'horn') {
-    playHornSound();
-  }
-}
-
-function playClappingSound() {
-  // Multiple quick bursts to simulate clapping
-  for (let i = 0; i < 4; i++) {
-    setTimeout(() => {
-      const oscillator = window.audioContext.createOscillator();
-      const gainNode = window.audioContext.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(window.audioContext.destination);
-      
-      oscillator.frequency.value = 800 + Math.random() * 200;
-      oscillator.type = 'square';
-      
-      gainNode.gain.setValueAtTime(soundVolume * 0.3, window.audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, window.audioContext.currentTime + 0.1);
-      
-      oscillator.start(window.audioContext.currentTime);
-      oscillator.stop(window.audioContext.currentTime + 0.1);
-    }, i * 150);
+  try {
+    if (soundName.toUpperCase() === 'CLAPPING') {
+      playClappingSound();
+    } else if (soundName.toUpperCase() === 'WOMP') {
+      playWompSound();
+    } else if (soundName.toUpperCase() === 'HORN') {
+      playHornSound();
+    }
+  } catch (error) {
+    console.error('Error playing sound:', error);
   }
 }
 
-function playWompSound() {
-  // Descending sad trombone sound
-  const oscillator = window.audioContext.createOscillator();
-  const gainNode = window.audioContext.createGain();
-  
-  oscillator.connect(gainNode);
-  gainNode.connect(window.audioContext.destination);
-  
-  oscillator.frequency.setValueAtTime(300, window.audioContext.currentTime);
-  oscillator.frequency.exponentialRampToValueAtTime(150, window.audioContext.currentTime + 1.0);
-  oscillator.type = 'sawtooth';
-  
-  gainNode.gain.setValueAtTime(soundVolume * 0.4, window.audioContext.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.01, window.audioContext.currentTime + 1.0);
-  
-  oscillator.start(window.audioContext.currentTime);
-  oscillator.stop(window.audioContext.currentTime + 1.0);
+async function playClappingSound() {
+  try {
+    // Multiple quick bursts to simulate clapping
+    for (let i = 0; i < 4; i++) {
+      setTimeout(async () => {
+        const oscillator = window.audioContext.createOscillator();
+        const gainNode = window.audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(window.audioContext.destination);
+        
+        oscillator.frequency.value = 800 + Math.random() * 200;
+        oscillator.type = 'square';
+        
+        const currentTime = window.audioContext.currentTime;
+        gainNode.gain.setValueAtTime(soundVolume * 0.3, currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.1);
+        
+        oscillator.start(currentTime);
+        oscillator.stop(currentTime + 0.1);
+      }, i * 150);
+    }
+  } catch (error) {
+    console.error('Error playing clapping sound:', error);
+  }
 }
 
-function playHornSound() {
-  // Three ascending notes: do-do-doo
-  const notes = [523, 523, 659]; // C5, C5, E5
-  const durations = [0.2, 0.2, 0.4];
-  
-  notes.forEach((frequency, index) => {
-    setTimeout(() => {
-      const oscillator = window.audioContext.createOscillator();
-      const gainNode = window.audioContext.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(window.audioContext.destination);
-      
-      oscillator.frequency.value = frequency;
-      oscillator.type = 'triangle';
-      
-      gainNode.gain.setValueAtTime(soundVolume * 0.4, window.audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, window.audioContext.currentTime + durations[index]);
-      
-      oscillator.start(window.audioContext.currentTime);
-      oscillator.stop(window.audioContext.currentTime + durations[index]);
-    }, index * 250);
-  });
+async function playWompSound() {
+  try {
+    const oscillator = window.audioContext.createOscillator();
+    const gainNode = window.audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(window.audioContext.destination);
+    
+    const currentTime = window.audioContext.currentTime;
+    oscillator.frequency.setValueAtTime(300, currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(150, currentTime + 1.0);
+    oscillator.type = 'sawtooth';
+    
+    gainNode.gain.setValueAtTime(soundVolume * 0.4, currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + 1.0);
+    
+    oscillator.start(currentTime);
+    oscillator.stop(currentTime + 1.0);
+  } catch (error) {
+    console.error('Error playing womp sound:', error);
+  }
+}
+
+async function playHornSound() {
+  try {
+    // Three ascending notes: do-do-doo
+    const notes = [523, 523, 659]; // C5, C5, E5
+    const durations = [0.2, 0.2, 0.4];
+    
+    notes.forEach((frequency, index) => {
+      setTimeout(() => {
+        const oscillator = window.audioContext.createOscillator();
+        const gainNode = window.audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(window.audioContext.destination);
+        
+        oscillator.frequency.value = frequency;
+        oscillator.type = 'triangle';
+        
+        const currentTime = window.audioContext.currentTime;
+        gainNode.gain.setValueAtTime(soundVolume * 0.4, currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + durations[index]);
+        
+        oscillator.start(currentTime);
+        oscillator.stop(currentTime + durations[index]);
+      }, index * 250);
+    });
+  } catch (error) {
+    console.error('Error playing horn sound:', error);
+  }
 }
 
 function syncGameResult(winner, message, score = null, gameSpecificData = null) {
@@ -2347,19 +2405,33 @@ function updateProfileDisplay(playerNumber, imageData) {
 }
 
 function loadProfilePictures() {
-  // Load from saved data
+  // Load from saved data first
   if (window.gameData && window.gameData.profilePictures) {
     profilePictures = { ...window.gameData.profilePictures };
-    
-    // Update displays
-    for (let i = 1; i <= 2; i++) {
-      const imageData = profilePictures[`player${i}`];
-      if (imageData) {
-        const profileDiv = document.getElementById(`profile${i}`);
-        profileDiv.innerHTML = `<img src="${imageData}" alt="Player ${i}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
-        profileDiv.classList.remove('placeholder');
-      }
+  } else {
+    profilePictures = { player1: null, player2: null };
+  }
+  
+  // Update displays for both players
+  for (let i = 1; i <= 2; i++) {
+    const imageData = profilePictures[`player${i}`];
+    if (imageData) {
+      updateProfileDisplay(i, imageData);
     }
+  }
+  
+  // After connecting to Firebase, also try to load from there
+  if (isLoggedIn && myPlayerNumber) {
+    // Load other player's profile from Firebase
+    const otherPlayerNum = myPlayerNumber === 1 ? 2 : 1;
+    database.ref(`gameSession/player${otherPlayerNum}/profilePicture`).once('value', (snapshot) => {
+      const otherProfilePic = snapshot.val();
+      if (otherProfilePic) {
+        updateProfileDisplay(otherPlayerNum, otherProfilePic);
+        profilePictures[`player${otherPlayerNum}`] = otherProfilePic;
+        saveData();
+      }
+    });
   }
 }
 
@@ -3246,18 +3318,26 @@ function clearMessages() {
 
 
 // Event listeners - SINGLE DEFINITION
+// Event listeners - SINGLE DEFINITION
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('passwordInput').addEventListener('keypress', e => {
     if(e.key==='Enter') checkPassword();
   });
 
-  // Initialize audio context on first user interaction
-  document.addEventListener('click', function initAudio() {
-    if (!window.audioContext) {
-      window.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    document.removeEventListener('click', initAudio);
-  }, { once: true });
+  // Initialize audio context on ANY user interaction (not just click)
+  const initAudioOnInteraction = async function() {
+    await initializeAudio();
+    // Remove all the event listeners once audio is initialized
+    document.removeEventListener('click', initAudioOnInteraction);
+    document.removeEventListener('keydown', initAudioOnInteraction);
+    document.removeEventListener('touchstart', initAudioOnInteraction);
+  };
+  
+  document.addEventListener('click', initAudioOnInteraction, { once: true });
+  document.addEventListener('keydown', initAudioOnInteraction, { once: true });
+  document.addEventListener('touchstart', initAudioOnInteraction, { once: true });
+
+  // Hide sound controls initially (lobby state)
   hideSoundControls();
 
   // Only allow players to edit their own names
@@ -3290,6 +3370,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
   });
+  
   loadData();
   loadProfilePictures();
   updateGlobalScores();
