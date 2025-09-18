@@ -234,8 +234,8 @@ body::before {
 }
 
 .profile-picture {
-  width: 50px;
-  height: 50px;
+  width: 100px;
+  height: 100px;
   border: 2px solid #00ff00;
   border-radius: 50%;
   object-fit: cover;
@@ -1286,6 +1286,36 @@ function connectToFirebase(playerNum) {
     }
   });
 
+  // Listen for profile updates from other player
+  const otherPlayerProfileListener = database.ref(`gameSession/player${otherPlayerNum}`).on('value', (snapshot) => {
+    if (!isLoggedIn) return;
+    const otherPlayerData = snapshot.val();
+    
+    if (otherPlayerData) {
+      // Update other player's profile picture
+      if (otherPlayerData.profilePicture) {
+        updateProfileDisplay(otherPlayerNum, otherPlayerData.profilePicture);
+      }
+      
+      // Update other player's name
+      if (otherPlayerData.name) {
+        document.getElementById(`player${otherPlayerNum}Name`).value = otherPlayerData.name;
+        updatePlayerNames();
+      }
+      
+      // Existing connection status code...
+      otherPlayerConnected = otherPlayerData.connected === true;
+      updateConnectionStatus(otherPlayerData);
+      
+      if (!wasConnected && otherPlayerConnected) {
+        showTemporaryNotification('BOTH PLAYERS CONNECTED!', '#00ff00', 3000);
+      }
+    } else {
+      otherPlayerConnected = false;
+      updateConnectionStatus(null);
+    }
+  });
+
   // Listen for game results
   const gameResultListener = database.ref('gameSession/gameResult').on('value', (snapshot) => {
     if (!isLoggedIn) return;
@@ -1904,10 +1934,20 @@ let secretClickCount = 0;
 let secretTimer = null;
 
 function selectProfilePicture(playerNumber) {
+  if (playerNumber !== myPlayerNumber) {
+    alert('NICE TRY FUNNY GUY');
+    return;
+  }
   document.getElementById(`fileInput${playerNumber}`).click();
 }
 
 function handleProfileUpload(playerNumber, event) {
+  // Only allow player to edit their own profile
+  if (playerNumber !== myPlayerNumber) {
+    alert('NICE TRY FUNNY GUY');
+    return;
+  }
+  
   const file = event.target.files[0];
   if (!file) return;
   
@@ -1926,15 +1966,17 @@ function handleProfileUpload(playerNumber, event) {
   const reader = new FileReader();
   reader.onload = function(e) {
     const imageData = e.target.result;
-    profilePictures[`player${playerNumber}`] = imageData;
     
-    // Update display
-    const profileDiv = document.getElementById(`profile${playerNumber}`);
-    profileDiv.innerHTML = `<img src="${imageData}" alt="Player ${playerNumber}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
-    profileDiv.classList.remove('placeholder');
+    // Save to Firebase for network sync
+    if (myPlayerNumber) {
+      database.ref(`gameSession/player${playerNumber}`).update({
+        profilePicture: imageData,
+        name: document.getElementById(`player${playerNumber}Name`).value.toUpperCase()
+      });
+    }
     
-    // Save to storage
-    saveData();
+    // Update local display
+    updateProfileDisplay(playerNumber, imageData);
     
     // Show success message
     const successDiv = document.createElement('div');
@@ -1951,6 +1993,17 @@ function handleProfileUpload(playerNumber, event) {
   };
   
   reader.readAsDataURL(file);
+}
+
+function updateProfileDisplay(playerNumber, imageData) {
+  const profileDiv = document.getElementById(`profile${playerNumber}`);
+  if (imageData) {
+    profileDiv.innerHTML = `<img src="${imageData}" alt="Player ${playerNumber}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+    profileDiv.classList.remove('placeholder');
+  } else {
+    profileDiv.innerHTML = `P${playerNumber}`;
+    profileDiv.classList.add('placeholder');
+  }
 }
 
 function loadProfilePictures() {
@@ -2857,14 +2910,35 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('passwordInput').addEventListener('keypress', e => {
     if(e.key==='Enter') checkPassword();
   });
-  document.getElementById('loginButton').addEventListener('click', checkPassword);
-  document.getElementById('player1Name').addEventListener('input', () => {
+  // Only allow players to edit their own names
+  document.getElementById('player1Name').addEventListener('input', (e) => {
+    if (myPlayerNumber !== 1) {
+      e.target.value = e.target.defaultValue; // Reset to original value
+      alert('SIT YO GOOFY AH DOWN');
+      return;
+    }
     updatePlayerNames();
-    saveData(); // ADD THIS
+    // Sync name to Firebase
+    if (myPlayerNumber) {
+      database.ref(`gameSession/player1`).update({
+        name: e.target.value.toUpperCase()
+      });
+    }
   });
-  document.getElementById('player2Name').addEventListener('input', () => {
+  
+  document.getElementById('player2Name').addEventListener('input', (e) => {
+    if (myPlayerNumber !== 2) {
+      e.target.value = e.target.defaultValue; // Reset to original value
+      alert('SIT YO GOOFY AH DOWN');
+      return;
+    }
     updatePlayerNames();
-    saveData(); // ADD THIS
+    // Sync name to Firebase
+    if (myPlayerNumber) {
+      database.ref(`gameSession/player2`).update({
+        name: e.target.value.toUpperCase()
+      });
+    }
   });
   loadData();
   loadProfilePictures();
