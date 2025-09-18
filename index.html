@@ -226,6 +226,74 @@ body::before {
   text-transform: uppercase;
 }
 
+/* PROFILE PICTURES */
+.profile-section {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.profile-picture {
+  width: 50px;
+  height: 50px;
+  border: 2px solid #00ff00;
+  border-radius: 50%;
+  object-fit: cover;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: rgba(0, 255, 0, 0.1);
+}
+
+.profile-picture:hover {
+  border-color: #00ffff;
+  box-shadow: 0 0 15px #00ffff;
+  transform: scale(1.1);
+}
+
+.profile-picture.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5em;
+  color: #00ff00;
+  text-shadow: 0 0 10px #00ff00;
+}
+
+.upload-button {
+  background: #003300;
+  color: #00ff00;
+  border: 1px solid #00ff00;
+  padding: 5px 10px;
+  font-family: 'Orbitron', monospace;
+  font-size: 0.8em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.upload-button:hover {
+  background: #00ff00;
+  color: #000;
+  box-shadow: 0 0 10px #00ff00;
+}
+
+.file-input {
+  display: none;
+}
+
+/* Secret reset styles */
+.secret-reset {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+}
+
 /* GAMES GRID */
 .games-grid {
   display: grid;
@@ -784,11 +852,29 @@ body::before {
     <div class="players-setup">
       <div class="player-input">
         <label>PLAYER 1:</label>
-        <input type="text" id="player1Name" value="ELENA">
+        <div class="profile-section">
+          <div class="profile-picture placeholder" id="profile1" onclick="selectProfilePicture(1)">
+            P1
+          </div>
+          <div>
+            <input type="text" id="player1Name" value="ELENA">
+            <button class="upload-button" onclick="selectProfilePicture(1)">UPLOAD</button>
+          </div>
+        </div>
+        <input type="file" id="fileInput1" class="file-input" accept="image/*" onchange="handleProfileUpload(1, event)">
       </div>
       <div class="player-input">
         <label>PLAYER 2:</label>
-        <input type="text" id="player2Name" value="BRYAN">
+        <div class="profile-section">
+          <div class="profile-picture placeholder" id="profile2" onclick="selectProfilePicture(2)">
+            P2
+          </div>
+          <div>
+            <input type="text" id="player2Name" value="BRYAN">
+            <button class="upload-button" onclick="selectProfilePicture(2)">UPLOAD</button>
+          </div>
+        </div>
+        <input type="file" id="fileInput2" class="file-input" accept="image/*" onchange="handleProfileUpload(2, event)">
       </div>
     </div>
     <div class="global-score">
@@ -912,9 +998,9 @@ function saveData() {
     globalScores, 
     player1Name: document.getElementById('player1Name').value,
     player2Name: document.getElementById('player2Name').value, 
-    gameMessages 
+    gameMessages,
+    profilePictures  // ADD THIS LINE
   };
-  // Store in memory for session persistence
   sessionStorage.setItem('gameHubData', JSON.stringify(window.gameData));
 }
 
@@ -930,6 +1016,7 @@ function loadData() {
       if (data.player1Name) document.getElementById('player1Name').value = data.player1Name;
       if (data.player2Name) document.getElementById('player2Name').value = data.player2Name;
       window.gameData = data;
+      loadProfilePictures(); 
       return;
     } catch(e) {
       console.error('Error loading saved data:', e);
@@ -945,6 +1032,9 @@ function loadData() {
     if (data.player1Name) document.getElementById('player1Name').value = data.player1Name;
     if (data.player2Name) document.getElementById('player2Name').value = data.player2Name;
   }
+  
+  // Load profile pictures regardless of data source
+  loadProfilePictures(); 
 }
 
 function logout() {
@@ -1808,6 +1898,175 @@ function getGameConfig(gameType) {
   return configs[gameType];
 }
 
+// Profile picture functionality
+let profilePictures = { player1: null, player2: null };
+let secretClickCount = 0;
+let secretTimer = null;
+
+function selectProfilePicture(playerNumber) {
+  document.getElementById(`fileInput${playerNumber}`).click();
+}
+
+function handleProfileUpload(playerNumber, event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  // Validate file size (max 2MB)
+  if (file.size > 2 * 1024 * 1024) {
+    alert('FILE TOO LARGE - MAXIMUM 2MB ALLOWED');
+    return;
+  }
+  
+  // Validate file type
+  if (!file.type.startsWith('image/')) {
+    alert('INVALID FILE TYPE - IMAGES ONLY');
+    return;
+  }
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const imageData = e.target.result;
+    profilePictures[`player${playerNumber}`] = imageData;
+    
+    // Update display
+    const profileDiv = document.getElementById(`profile${playerNumber}`);
+    profileDiv.innerHTML = `<img src="${imageData}" alt="Player ${playerNumber}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+    profileDiv.classList.remove('placeholder');
+    
+    // Save to storage
+    saveData();
+    
+    // Show success message
+    const successDiv = document.createElement('div');
+    successDiv.style.cssText = `position: fixed; top: 80px; right: 20px; 
+      background: rgba(0, 51, 0, 0.95); border: 2px solid #00ff00; padding: 10px; 
+      color: #00ff00; text-shadow: 0 0 5px #00ff00; font-family: 'Orbitron', monospace; 
+      font-size: 0.8em; z-index: 10000; text-transform: uppercase;`;
+    successDiv.textContent = `PLAYER ${playerNumber} PROFILE UPDATED`;
+    document.body.appendChild(successDiv);
+    
+    setTimeout(() => { 
+      if (successDiv.parentNode) successDiv.remove(); 
+    }, 2000);
+  };
+  
+  reader.readAsDataURL(file);
+}
+
+function loadProfilePictures() {
+  // Load from saved data
+  if (window.gameData && window.gameData.profilePictures) {
+    profilePictures = { ...window.gameData.profilePictures };
+    
+    // Update displays
+    for (let i = 1; i <= 2; i++) {
+      const imageData = profilePictures[`player${i}`];
+      if (imageData) {
+        const profileDiv = document.getElementById(`profile${i}`);
+        profileDiv.innerHTML = `<img src="${imageData}" alt="Player ${i}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+        profileDiv.classList.remove('placeholder');
+      }
+    }
+  }
+}
+
+// Secret reset functionality
+function handleSecretClick() {
+  secretClickCount++;
+  
+  // Reset timer
+  if (secretTimer) clearTimeout(secretTimer);
+  secretTimer = setTimeout(() => {
+    secretClickCount = 0;
+  }, 3000);
+  
+  // Check for secret sequence (7 clicks within 3 seconds)
+  if (secretClickCount >= 7) {
+    confirmScoreboardReset();
+    secretClickCount = 0;
+  }
+}
+
+function confirmScoreboardReset() {
+  const resetOverlay = document.createElement('div');
+  resetOverlay.style.cssText = `position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.95); display: flex; align-items: center; justify-content: center;
+    z-index: 10002;`;
+  
+  const resetDialog = document.createElement('div');
+  resetDialog.style.cssText = `background: rgba(51, 0, 0, 0.98); border: 4px solid #ff0040;
+    padding: 40px; text-align: center; max-width: 500px; box-shadow: 0 0 50px #ff0040;`;
+  
+  resetDialog.innerHTML = `
+    <h2 style="color: #ff0040; text-shadow: 0 0 15px #ff0040; margin-bottom: 20px; text-transform: uppercase;">
+      [ADMIN MODE DETECTED]</h2>
+    <p style="color: #ffff00; text-shadow: 0 0 10px #ffff00; margin-bottom: 30px;">
+      WARNING: THIS WILL RESET ALL SCORES AND GAME HISTORY<br>
+      THIS ACTION CANNOT BE UNDONE</p>
+    <div style="display: flex; gap: 20px; justify-content: center;">
+      <button onclick="executeReset()" style="background: #330000; color: #ff0040; border: 2px solid #ff0040;
+        padding: 12px 25px; font-family: 'Orbitron', monospace; font-weight: bold; 
+        text-transform: uppercase; cursor: pointer;">CONFIRM RESET</button>
+      <button onclick="cancelReset()" style="background: #003300; color: #00ff00; border: 2px solid #00ff00;
+        padding: 12px 25px; font-family: 'Orbitron', monospace; font-weight: bold; 
+        text-transform: uppercase; cursor: pointer;">CANCEL</button>
+    </div>
+  `;
+  
+  resetOverlay.appendChild(resetDialog);
+  resetOverlay.id = 'resetOverlay';
+  document.body.appendChild(resetOverlay);
+}
+
+function executeReset() {
+  // Reset all game data
+  globalScores = { player1: 0, player2: 0 };
+  gameHistory = {};
+  gameMessages = [];
+  
+  // Clear Firebase
+  if (myPlayerNumber) {
+    database.ref('gameSession/messages').remove();
+  }
+  
+  // Clear local storage
+  sessionStorage.removeItem('gameHubData');
+  window.gameData = null;
+  
+  // Update displays
+  updateGlobalScores();
+  document.getElementById('historyContent').innerHTML = '<p style="text-align: center; color: #666; font-style: italic;">NO RECORDS FOUND</p>';
+  displayMessages();
+  
+  // Close dialog
+  cancelReset();
+  
+  // Show confirmation
+  const confirmDiv = document.createElement('div');
+  confirmDiv.style.cssText = `position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: rgba(51, 0, 0, 0.95); border: 2px solid #ff0040; padding: 15px; 
+    color: #ff0040; text-shadow: 0 0 10px #ff0040; font-family: 'Orbitron', monospace; 
+    font-weight: bold; text-transform: uppercase; z-index: 10000;`;
+  confirmDiv.textContent = 'SCOREBOARD RESET COMPLETE';
+  document.body.appendChild(confirmDiv);
+  
+  setTimeout(() => { 
+    if (confirmDiv.parentNode) confirmDiv.remove(); 
+  }, 3000);
+}
+
+function cancelReset() {
+  const overlay = document.getElementById('resetOverlay');
+  if (overlay) overlay.remove();
+}
+
+// Make functions globally accessible
+window.selectProfilePicture = selectProfilePicture;
+window.handleProfileUpload = handleProfileUpload;
+window.handleSecretClick = handleSecretClick;
+window.executeReset = executeReset;
+window.cancelReset = cancelReset;
+
 // Result screen triggers 
 function showGameResult(winner, message, score = null, gameSpecificData = null) {
   // Determine if current player won, lost, or drew
@@ -2608,6 +2867,7 @@ document.addEventListener('DOMContentLoaded', function() {
     saveData(); // ADD THIS
   });
   loadData();
+  loadProfilePictures();
   updateGlobalScores();
   updatePlayerNames();
 });
@@ -2621,6 +2881,9 @@ document.addEventListener('keypress', function(e) {
     else if (document.getElementById('messageInput') === document.activeElement) sendMessage();
   }
 });
+
+<!-- Secret reset button (invisible) -->
+<button class="secret-reset" id="secretReset" onclick="handleSecretClick()"></button>
   
 </script>
 </body>
