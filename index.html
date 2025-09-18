@@ -1089,6 +1089,15 @@ body::before {
   <div class="sound-toggle" id="soundToggle" onclick="toggleSoundSidebar()">SOUNDS</div>
   <div class="sound-sidebar" id="soundSidebar">
     <div class="sound-header">█ SOUND FX</div>
+    
+    <!-- NEW: Custom Audio Upload Section -->
+    <div style="border: 2px solid #00ff00; padding: 10px; margin-bottom: 15px; background: rgba(0, 255, 0, 0.1);">
+      <div style="color: #00ffff; font-size: 0.8em; text-transform: uppercase; margin-bottom: 8px; text-align: center;">UPLOAD CUSTOM SOUNDS</div>
+      <input type="file" id="customAudioInput" accept="audio/*" multiple style="display: none;" onchange="handleAudioUpload(event)">
+      <button class="sound-button" onclick="document.getElementById('customAudioInput').click()" style="width: 100%; padding: 8px; margin-bottom: 5px;">📁 UPLOAD AUDIO</button>
+      <div id="uploadedSounds" style="display: grid; grid-template-columns: 1fr; gap: 5px;"></div>
+    </div>
+
     <div class="sound-effects-grid" style="grid-template-columns: 1fr; gap: 15px;">
       <button class="sound-button" onclick="playNetworkSound('clapping')" style="padding: 12px;">👏 CLAPPING</button>
       <button class="sound-button" onclick="playNetworkSound('womp')" style="padding: 12px;">📉 WOMP WOMP</button>
@@ -1475,7 +1484,7 @@ function connectToFirebase(playerNum) {
     const soundData = snapshot.val();
     if (soundData && soundData.timestamp) {
       // Play sound locally for both players
-      playLocalSound(soundData.sound);
+      playLocalSound(soundData.sound, soundData.isCustom || false);
       
       // Show sound notification
       const player1Name = (document.getElementById('player1Name').value || 'ELENA').toUpperCase();
@@ -1487,7 +1496,7 @@ function connectToFirebase(playerNum) {
         background: rgba(0, 51, 0, 0.9); border: 2px solid #00ffff; padding: 8px; 
         color: #00ffff; text-shadow: 0 0 5px #00ffff; font-family: 'Orbitron', monospace; 
         font-size: 0.7em; z-index: 10000; text-transform: uppercase; border-radius: 3px;`;
-      soundNotification.textContent = `${playerName}: ${soundData.sound}`;
+      soundNotification.textContent = `${playerName}: ${soundData.sound}${soundData.isCustom ? ' (CUSTOM)' : ''}`;
       document.body.appendChild(soundNotification);
       
       setTimeout(() => { 
@@ -1573,7 +1582,135 @@ function showTemporaryNotification(message, color = '#00ff00', duration = 3000) 
 }
 // Audio Funcs 
 
+let uploadedAudio = {}; // NEW: Store uploaded audio files
 let audioInitialized = false;
+
+async function initializeAudio() {
+  // ... keep existing function exactly the same
+}
+
+// NEW: Add all these functions after initializeAudio
+function handleAudioUpload(event) {
+  const files = event.target.files;
+  if (!files.length) return;
+  
+  Array.from(files).forEach(file => {
+    // Validate file type
+    if (!file.type.startsWith('audio/')) {
+      alert(`INVALID FILE: ${file.name} - AUDIO FILES ONLY`);
+      return;
+    }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert(`FILE TOO LARGE: ${file.name} - MAXIMUM 5MB ALLOWED`);
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const audioData = e.target.result;
+      const fileName = file.name.split('.')[0].toUpperCase();
+      
+      // Store the audio data
+      uploadedAudio[fileName] = audioData;
+      
+      // Add button to the UI
+      addCustomSoundButton(fileName);
+      
+      // Save to localStorage for persistence
+      saveUploadedAudio();
+      
+      // Show success message
+      showTemporaryNotification(`AUDIO UPLOADED: ${fileName}`, '#00ff00', 2000);
+    };
+    
+    reader.readAsDataURL(file);
+  });
+  
+  // Clear the input
+  event.target.value = '';
+}
+
+function addCustomSoundButton(soundName) {
+  const container = document.getElementById('uploadedSounds');
+  
+  // Check if button already exists
+  if (document.getElementById(`custom-${soundName}`)) return;
+  
+  const button = document.createElement('button');
+  button.id = `custom-${soundName}`;
+  button.className = 'sound-button';
+  button.style.cssText = 'width: 100%; padding: 8px; margin-bottom: 5px; position: relative;';
+  button.innerHTML = `🔊 ${soundName}<span style="position: absolute; right: 5px; color: #ff0040; cursor: pointer;" onclick="removeCustomSound('${soundName}', event)">✕</span>`;
+  button.onclick = (e) => {
+    if (e.target.textContent !== '✕') {
+      playCustomNetworkSound(soundName);
+    }
+  };
+  
+  container.appendChild(button);
+}
+
+function removeCustomSound(soundName, event) {
+  event.stopPropagation();
+  
+  if (confirm(`REMOVE ${soundName}?`)) {
+    // Remove from storage
+    delete uploadedAudio[soundName];
+    saveUploadedAudio();
+    
+    // Remove button from UI
+    const button = document.getElementById(`custom-${soundName}`);
+    if (button) button.remove();
+    
+    showTemporaryNotification(`REMOVED: ${soundName}`, '#ff0040', 2000);
+  }
+}
+
+function saveUploadedAudio() {
+  try {
+    localStorage.setItem('gameHubCustomAudio', JSON.stringify(uploadedAudio));
+  } catch (error) {
+    console.error('Failed to save audio to localStorage:', error);
+  }
+}
+
+function loadUploadedAudio() {
+  try {
+    const saved = localStorage.getItem('gameHubCustomAudio');
+    if (saved) {
+      uploadedAudio = JSON.parse(saved);
+      
+      // Recreate buttons for loaded audio
+      Object.keys(uploadedAudio).forEach(soundName => {
+        addCustomSoundButton(soundName);
+      });
+    }
+  } catch (error) {
+    console.error('Failed to load audio from localStorage:', error);
+    uploadedAudio = {};
+  }
+}
+
+async function playCustomNetworkSound(soundName) {
+  // First initialize audio
+  const initialized = await initializeAudio();
+  if (!initialized) {
+    alert('AUDIO INITIALIZATION FAILED - CHECK BROWSER PERMISSIONS');
+    return;
+  }
+
+  // Then send to network
+  if (myPlayerNumber) {
+    database.ref('gameSession/soundEffect').set({
+      sound: soundName.toUpperCase(),
+      isCustom: true, // NEW: Mark as custom sound
+      player: myPlayerNumber,
+      timestamp: Date.now()
+    });
+  }
+}
 
 async function initializeAudio() {
   if (audioInitialized) return true;
@@ -1675,7 +1812,7 @@ function getSoundWaveType(soundName) {
   return waveTypes[soundName] || 'sine';
 }
 
-async function playLocalSound(soundName) {
+async function playLocalSound(soundName, isCustom = false) {
   const initialized = await initializeAudio();
   if (!initialized) {
     console.error('Cannot play sound - audio initialization failed');
@@ -1683,15 +1820,55 @@ async function playLocalSound(soundName) {
   }
   
   try {
-    if (soundName.toUpperCase() === 'CLAPPING') {
-      playClappingSound();
-    } else if (soundName.toUpperCase() === 'WOMP') {
-      playWompSound();
-    } else if (soundName.toUpperCase() === 'HORN') {
-      playHornSound();
+    if (isCustom && uploadedAudio[soundName]) {
+      await playUploadedAudio(soundName);
+    } else {
+      // Play built-in sounds
+      if (soundName.toUpperCase() === 'CLAPPING') {
+        playClappingSound();
+      } else if (soundName.toUpperCase() === 'WOMP') {
+        playWompSound();
+      } else if (soundName.toUpperCase() === 'HORN') {
+        playHornSound();
+      }
     }
   } catch (error) {
     console.error('Error playing sound:', error);
+  }
+}
+
+async function playUploadedAudio(soundName) {
+  try {
+    const audioData = uploadedAudio[soundName];
+    if (!audioData) {
+      console.error('Audio not found:', soundName);
+      return;
+    }
+    
+    // Convert data URL to array buffer
+    const response = await fetch(audioData);
+    const arrayBuffer = await response.arrayBuffer();
+    
+    // Decode audio data
+    const audioBuffer = await window.audioContext.decodeAudioData(arrayBuffer);
+    
+    // Create and play audio source
+    const source = window.audioContext.createBufferSource();
+    const gainNode = window.audioContext.createGain();
+    
+    source.buffer = audioBuffer;
+    source.connect(gainNode);
+    gainNode.connect(window.audioContext.destination);
+    
+    // Apply volume
+    gainNode.gain.setValueAtTime(soundVolume, window.audioContext.currentTime);
+    
+    // Play the sound
+    source.start(0);
+    
+  } catch (error) {
+    console.error('Error playing uploaded audio:', error);
+    alert(`PLAYBACK ERROR: ${soundName}`);
   }
 }
 
@@ -3262,7 +3439,7 @@ function sendMessage() {
   const message = {
     sender: currentPlayerName,
     senderNumber: myPlayerNumber,
-    text: messageText.toUpperCase(),
+    text: messageText,
     timestamp: Date.now(),
     displayTime: new Date().toLocaleTimeString()
   };
@@ -3339,6 +3516,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Hide sound controls initially (lobby state)
   hideSoundControls();
+
+  // load any previosuly uploaded audio
+  loadUploadedAudio();
 
   // Only allow players to edit their own names
   document.getElementById('player1Name').addEventListener('input', (e) => {
