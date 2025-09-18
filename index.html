@@ -305,6 +305,139 @@ body::before {
   text-shadow: none;
 }
 
+/* GAME RESULT SCREENS */
+.game-result-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.result-screen {
+  background: rgba(0, 17, 0, 0.98);
+  border: 4px solid;
+  padding: 50px;
+  text-align: center;
+  max-width: 600px;
+  width: 90%;
+  box-shadow: 0 0 50px;
+  animation: slideIn 0.6s ease-out 0.2s both;
+}
+
+@keyframes slideIn {
+  from { transform: translateY(-50px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.winner-screen {
+  border-color: #00ff00;
+  box-shadow: 0 0 50px #00ff00;
+}
+
+.loser-screen {
+  border-color: #ff0040;
+  box-shadow: 0 0 50px #ff0040;
+}
+
+.draw-screen {
+  border-color: #ffff00;
+  box-shadow: 0 0 50px #ffff00;
+}
+
+.result-title {
+  font-size: 3em;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 5px;
+  margin-bottom: 30px;
+  text-shadow: 0 0 20px currentColor;
+}
+
+.winner-screen .result-title {
+  color: #00ff00;
+  animation: pulse 2s infinite;
+}
+
+.loser-screen .result-title {
+  color: #ff0040;
+}
+
+.draw-screen .result-title {
+  color: #ffff00;
+}
+
+.result-message {
+  font-size: 1.3em;
+  margin-bottom: 30px;
+  color: #00ffff;
+  text-shadow: 0 0 15px #00ffff;
+  line-height: 1.6;
+}
+
+.result-stats {
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid #00ff00;
+  padding: 20px;
+  margin: 20px 0;
+  color: #00ff00;
+  text-shadow: 0 0 10px #00ff00;
+}
+
+.result-buttons {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin-top: 40px;
+  flex-wrap: wrap;
+}
+
+.result-button {
+  background: #003300;
+  color: #00ff00;
+  border: 2px solid #00ff00;
+  padding: 15px 30px;
+  font-family: 'Orbitron', monospace;
+  font-weight: bold;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-shadow: 0 0 5px #00ff00;
+  font-size: 1.1em;
+}
+
+.result-button:hover {
+  background: #00ff00;
+  color: #000;
+  box-shadow: 0 0 20px #00ff00;
+  text-shadow: none;
+  transform: scale(1.05);
+}
+
+.result-button.secondary {
+  background: #330000;
+  color: #ff0040;
+  border-color: #ff0040;
+  text-shadow: 0 0 5px #ff0040;
+}
+
+.result-button.secondary:hover {
+  background: #ff0040;
+  color: #000;
+  box-shadow: 0 0 20px #ff0040;
+}
+
 /* GAME AREA */
 .game-area {
   display: none;
@@ -1070,14 +1203,11 @@ function connectToFirebase(playerNum) {
     if (result && !gameResultHandled) {
       gameResultHandled = true;
       setTimeout(() => {
-        alert(result.message);
-        if (result.recordWin) {
-          recordWin(result.winner, result.score, result.gameSpecificData);
-        }
+        showGameResult(result.winner, result.message, result.score, result.gameSpecificData);
         // Clear the result after handling
         database.ref('gameSession/gameResult').remove();
         gameResultHandled = false;
-      }, 100);
+      }, 500);
     }
   });
 
@@ -1132,14 +1262,13 @@ function showTemporaryNotification(message, color = '#00ff00', duration = 3000) 
   }, duration);
 }
 
-function syncGameResult(winner, message, score = null, gameSpecificData = null, shouldRecordWin = true) {
+function syncGameResult(winner, message, score = null, gameSpecificData = null) {
   if (myPlayerNumber) {
     database.ref('gameSession/gameResult').set({
       winner: winner,
       message: message,
       score: score,
       gameSpecificData: gameSpecificData,
-      recordWin: shouldRecordWin,
       timestamp: Date.now()
     });
   }
@@ -1678,6 +1807,115 @@ function getGameConfig(gameType) {
   };
   return configs[gameType];
 }
+
+// Result screen triggers 
+function showGameResult(winner, message, score = null, gameSpecificData = null) {
+  // Determine if current player won, lost, or drew
+  let screenType, title, resultMessage;
+  
+  if (winner === 0) {
+    screenType = 'draw';
+    title = 'DRAW';
+    resultMessage = 'HONORABLE STALEMATE';
+  } else if (winner === myPlayerNumber) {
+    screenType = 'winner';
+    title = 'WOOOOHOOOOO';
+    resultMessage = '🐛🧚 WINNA WINNA CHIKIN DINNA 🐛🧚';
+  } else {
+    screenType = 'loser';
+    title = 'U R A LOSER';
+    resultMessage = '😭🫵🏻 GO HOME AND CRY ABOUT IT 😭🫵🏻';
+  }
+  
+  // Get player names
+  const player1Name = (document.getElementById('player1Name').value || 'ELENA').toUpperCase();
+  const player2Name = (document.getElementById('player2Name').value || 'BRYAN').toUpperCase();
+  const winnerName = winner === 1 ? player1Name : winner === 2 ? player2Name : null;
+  
+  // Create overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'game-result-overlay';
+  overlay.id = 'gameResultOverlay';
+  
+  // Create result screen
+  const resultScreen = document.createElement('div');
+  resultScreen.className = `result-screen ${screenType}-screen`;
+  
+  let statsHTML = '';
+  if (score !== null) {
+    statsHTML = `
+      <div class="result-stats">
+        <strong>FINAL SCORE: ${score}</strong>
+      </div>
+    `;
+  }
+  
+  let winnerText = '';
+  if (winner !== 0) {
+    winnerText = `<div style="font-size: 1.5em; color: #00ffff; text-shadow: 0 0 15px #00ffff; margin-bottom: 20px;">
+      ${winnerName} CURB STOMPED THE COMPETITION
+    </div>`;
+  }
+  
+  resultScreen.innerHTML = `
+    <div class="result-title">${title}</div>
+    ${winnerText}
+    <div class="result-message">${resultMessage}</div>
+    ${statsHTML}
+    <div class="result-buttons">
+      <button class="result-button" onclick="playAgain()">PLAY AGAIN</button>
+      <button class="result-button secondary" onclick="returnToMenu()">MAIN MENU</button>
+    </div>
+  `;
+  
+  overlay.appendChild(resultScreen);
+  document.body.appendChild(overlay);
+  
+  // Record win if needed
+  if (winner !== 0) {
+    recordWin(winner, score, gameSpecificData);
+  }
+  
+  // Auto-dismiss after 10 seconds if no interaction
+  setTimeout(() => {
+    const existingOverlay = document.getElementById('gameResultOverlay');
+    if (existingOverlay) {
+      existingOverlay.style.opacity = '0.7';
+      const autoCloseMsg = document.createElement('div');
+      autoCloseMsg.style.cssText = `position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+        color: #666; font-size: 0.9em; text-align: center;`;
+      autoCloseMsg.textContent = 'Auto-closing in 5 seconds...';
+      existingOverlay.querySelector('.result-screen').appendChild(autoCloseMsg);
+      
+      setTimeout(() => {
+        if (document.getElementById('gameResultOverlay')) {
+          returnToMenu();
+        }
+      }, 5000);
+    }
+  }, 10000);
+}
+
+function playAgain() {
+  closeResultScreen();
+  restartGame();
+}
+
+function returnToMenu() {
+  closeResultScreen();
+  backToMenu();
+}
+
+function closeResultScreen() {
+  const overlay = document.getElementById('gameResultOverlay');
+  if (overlay) {
+    overlay.style.animation = 'fadeIn 0.3s ease-out reverse';
+    setTimeout(() => overlay.remove(), 300);
+  }
+}
+
+window.playAgain = playAgain;
+window.returnToMenu = returnToMenu;
 
 // Game implementations
 
