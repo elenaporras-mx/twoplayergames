@@ -1269,7 +1269,6 @@ function restartGame() {
   if (!currentGame) return;
   
   // Reset game state and reinitialize current game
-  gameResultHandled = false;
   currentPlayer = 1;
   gameState = { currentPlayer: 1 }; 
   updatePlayerNames();
@@ -1427,54 +1426,6 @@ function connectToFirebase(playerNum) {
     callback: currentPlayerListener
   });
 
-  // Listen for game history updates
-  const gameHistoryListener = database.ref('gameSession/gameHistory').on('value', (snapshot) => {
-    if (!isLoggedIn) return;
-    const historyData = snapshot.val();
-    
-    if (historyData && historyData.timestamp > (Date.now() - 30000)) {
-      // Merge the received history with local history
-      if (historyData.history) {
-        Object.keys(historyData.history).forEach(gameType => {
-          if (!gameHistory[gameType]) gameHistory[gameType] = [];
-          
-          // Merge histories, avoiding duplicates based on timestamp
-          historyData.history[gameType].forEach(record => {
-            const exists = gameHistory[gameType].some(existingRecord => 
-              Math.abs((existingRecord.timestamp || 0) - (record.timestamp || 0)) < 5000
-            );
-            if (!exists) {
-              gameHistory[gameType].unshift(record);
-            }
-          });
-          
-          // Keep only the latest 10 records
-          gameHistory[gameType] = gameHistory[gameType]
-            .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
-            .slice(0, 10);
-        });
-      }
-      
-      // Update global scores from Firebase
-      if (historyData.globalScores) {
-        globalScores = { ...globalScores, ...historyData.globalScores };
-        updateGlobalScores();
-      }
-      
-      // Update current game history display if in a game
-      if (currentGame) {
-        loadGameHistory(currentGame);
-      }
-      
-      saveData();
-    }
-  });
-
-  window.firebaseListeners.push({
-    ref: database.ref('gameSession/gameHistory'),
-    callback: gameHistoryListener
-  });
-
   // Listen for chat messages
   const messagesListener = database.ref('gameSession/messages').on('value', (snapshot) => {
     if (!isLoggedIn) return;
@@ -1532,10 +1483,6 @@ function connectToFirebase(playerNum) {
       // Update other player's profile picture
       if (otherPlayerData.profilePicture) {
         updateProfileDisplay(otherPlayerNum, otherPlayerData.profilePicture);
-        // Save to local storage for persistence
-        if (!profilePictures) profilePictures = {};
-        profilePictures[`player${otherPlayerNum}`] = otherPlayerData.profilePicture;
-        saveData();
       }
       
       // Update other player's name
@@ -1544,7 +1491,7 @@ function connectToFirebase(playerNum) {
         updatePlayerNames();
       }
       
-      // Update connection status
+      // Existing connection status code...
       otherPlayerConnected = otherPlayerData.connected === true;
       updateConnectionStatus(otherPlayerData);
       
@@ -1634,22 +1581,13 @@ function connectToFirebase(playerNum) {
   const gameResultListener = database.ref('gameSession/gameResult').on('value', (snapshot) => {
     if (!isLoggedIn) return;
     const result = snapshot.val();
-    if (result && !gameResultHandled && result.timestamp > (Date.now() - 5000)) {
+    if (result && !gameResultHandled) {
       gameResultHandled = true;
-      console.log('Game result received:', result);
-
-      // Only record the win if we haven't already recorded it locally
-      recordWin(result.winner, result.score, result.gameSpecificData);
-
-
       setTimeout(() => {
         showGameResult(result.winner, result.message, result.score, result.gameSpecificData);
         // Clear the result after handling
-        if (result.recordedBy === myPlayerNumber) {
-          setTimeout(() => {
-            database.ref('gameSession/gameResult').remove();
-          }, 1000);
-        }
+        database.ref('gameSession/gameResult').remove();
+        gameResultHandled = false;
       }, 500);
     }
   });
@@ -1710,10 +1648,27 @@ let uploadedAudio = {}; // NEW: Store uploaded audio files
 let audioInitialized = false;
 
 async function initializeAudio() {
-  // ... keep existing function exactly the same
+  if (audioInitialized) return true;
+  
+  try {
+    if (!window.audioContext) {
+      window.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    
+    // Resume context if it's suspended (required by browsers)
+    if (window.audioContext.state === 'suspended') {
+      await window.audioContext.resume();
+    }
+    
+    audioInitialized = true;
+    console.log('Audio initialized successfully');
+    return true;
+  } catch (error) {
+    console.error('Failed to initialize audio:', error);
+    return false;
+  }
 }
 
-// NEW: Add all these functions after initializeAudio
 function handleAudioUpload(event) {
   const files = event.target.files;
   if (!files.length) return;
@@ -2090,29 +2045,15 @@ async function playHornSound() {
 }
 
 function syncGameResult(winner, message, score = null, gameSpecificData = null) {
-  if (!myPlayerNumber || gameResultHandled) return;
-  
-  gameResultHandled = true;
-  
-  /**
-  if (winner !== 0) {
-    recordWin(winner, score, gameSpecificData);
-  } else {
-    // For draws, record for both players
-    recordWin(0, score, gameSpecificData);
+  if (myPlayerNumber) {
+    database.ref('gameSession/gameResult').set({
+      winner: winner,
+      message: message,
+      score: score,
+      gameSpecificData: gameSpecificData,
+      timestamp: Date.now()
+    });
   }
-  **/ 
-
-  // Send to Firebase
-  database.ref('gameSession/gameResult').set({
-    winner: winner,
-    message: message,
-    score: score,
-    gameSpecificData: gameSpecificData,
-    recordedBy: myPlayerNumber,
-    locallyRecorded: true,
-    timestamp: Date.now()
-  });
 }
 
 // MOVE THESE OUTSIDE - they should be global functions
@@ -2460,7 +2401,7 @@ function startGame(gameType) {
     alert('WAITING FOR OTHER PLAYER TO CONNECT');
     return;
   }
-  gameResultHandled = false;
+  
   currentGame = gameType;
   currentPlayer = 1;
   gameState = {currentPlayer: 1};
@@ -2514,6 +2455,10 @@ function backToMenu() {
   document.getElementById('gamesGrid').style.display = 'grid';
   document.getElementById('gameArea').style.display = 'none';
 
+
+  hideSoundControls();
+  
+  
   hideSoundControls();
   
   // Only hide chat and history if other player isn't connected
@@ -2543,58 +2488,23 @@ function switchPlayer() {
 }
 
 function recordWin(winner, score = null, gameSpecificData = null) {
-  if (!currentGame) return;
-  
   if (!gameHistory[currentGame]) gameHistory[currentGame] = [];
-  
   const player1Name = (document.getElementById('player1Name').value || 'ELENA').toUpperCase();
   const player2Name = (document.getElementById('player2Name').value || 'BRYAN').toUpperCase();
-  
-  let winnerName;
-  if (winner === 0) {
-    winnerName = 'DRAW';
-  } else {
-    winnerName = winner === 1 ? player1Name : player2Name;
-    // Only increment global scores for actual wins (not draws)
-    if (globalScores[`player${winner}`] !== undefined) {
-      globalScores[`player${winner}`]++;
-    }
-  }
-  
+  const winnerName = winner === 1 ? player1Name : player2Name;
   const gameRecord = {
-    winner: winnerName,
-    date: new Date().toLocaleDateString(),
-    time: new Date().toLocaleTimeString(),
-    score: score,
-    timestamp: Date.now(),
-    ...gameSpecificData
+    winner: winnerName, date: new Date().toLocaleDateString(), 
+    time: new Date().toLocaleTimeString(), score: score, ...gameSpecificData
   };
-  
-  // Check for duplicate entries (same winner, similar timestamp)
-  const recentRecords = gameHistory[currentGame].filter(record => 
-    Math.abs(new Date(record.date + ' ' + record.time).getTime() - Date.now()) < 10000
-  );
-  
-  if (recentRecords.length === 0 || recentRecords[0].winner !== winnerName) {
-    gameHistory[currentGame].unshift(gameRecord);
-    if (gameHistory[currentGame].length > 10) {
-      gameHistory[currentGame] = gameHistory[currentGame].slice(0, 10);
-    }
-    // Sync to Firebase for sharing between players
-    if (myPlayerNumber) {
-      database.ref('gameSession/gameHistory').set({
-        history: gameHistory,
-        globalScores: globalScores,
-        timestamp: Date.now()
-      });
+  gameHistory[currentGame].unshift(gameRecord);
+  if (gameHistory[currentGame].length > 10) {
+    gameHistory[currentGame] = gameHistory[currentGame].slice(0, 10);
   }
-}
-  
+  globalScores[`player${winner}`]++;
   updateGlobalScores();
   loadGameHistory(currentGame);
   saveData();
 }
-
 
 function updateGlobalScores() { updatePlayerNames(); }
 
@@ -2952,7 +2862,6 @@ window.cancelReset = cancelReset;
 
 // Result screen triggers 
 function showGameResult(winner, message, score = null, gameSpecificData = null) {
-  console.log('Showing game result:', { winner, message, score });
   // Determine if current player won, lost, or drew
   let screenType, title, resultMessage;
   
@@ -3089,22 +2998,10 @@ function dropPiece(col) {
     if (gameState.board[row][col] === 0) {
       gameState.board[row][col] = gameState.currentPlayer;
       updateConnect4Display();
-      syncGameState();
-      
       if (checkConnect4Win(row, col)) {
-        const player1Name = (document.getElementById('player1Name').value || 'ELENA').toUpperCase();
-        const player2Name = (document.getElementById('player2Name').value || 'BRYAN').toUpperCase();
-        const winnerName = gameState.currentPlayer === 1 ? player1Name : player2Name;
-        syncGameResult(gameState.currentPlayer, `${winnerName} CONNECTS 4!`);
+        syncGameResult(gameState.currentPlayer, `PLAYER ${gameState.currentPlayer} VICTORY!`);
         return;
       }
-      
-      // Check for draw
-      if (gameState.board.every(row => row.every(cell => cell !== 0))) {
-        syncGameResult(0, "BOARD FULL - DRAW GAME");
-        return;
-      }
-      
       gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
       currentPlayer = gameState.currentPlayer;
       syncGameState();
@@ -3749,7 +3646,6 @@ function clearMessages() {
 
 
 // Event listeners - SINGLE DEFINITION
-// Event listeners - SINGLE DEFINITION
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('passwordInput').addEventListener('keypress', e => {
     if(e.key==='Enter') checkPassword();
@@ -3804,7 +3700,6 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
   });
-  
   loadData();
   loadProfilePictures();
   updateGlobalScores();
