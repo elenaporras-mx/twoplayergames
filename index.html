@@ -777,7 +777,6 @@ body::before {
   font-family: 'Orbitron', monospace;
   font-size: 1.1em;
   text-align: center;
-  text-transform: uppercase;
 }
 
 .word-input, .anagram-input, .wordchain-input, .math-input {
@@ -1162,6 +1161,13 @@ function saveData() {
     profilePictures: profilePictures || { player1: null, player2: null }
   };
   sessionStorage.setItem('gameHubData', JSON.stringify(window.gameData));
+  
+  // Also save profile pictures separately for better persistence
+  try {
+    localStorage.setItem('gameHubProfiles', JSON.stringify(profilePictures));
+  } catch (error) {
+    console.error('Failed to save profile pictures:', error);
+  }
 }
 
 function loadData() {
@@ -1457,7 +1463,7 @@ function connectToFirebase(playerNum) {
       // Update other player's profile picture
       if (otherPlayerData.profilePicture) {
         updateProfileDisplay(otherPlayerNum, otherPlayerData.profilePicture);
-        // Also save to local storage for persistence
+        // Save to local storage for persistence
         if (!profilePictures) profilePictures = {};
         profilePictures[`player${otherPlayerNum}`] = otherPlayerData.profilePicture;
         saveData();
@@ -1510,6 +1516,48 @@ function connectToFirebase(playerNum) {
   window.firebaseListeners.push({
     ref: database.ref(`gameSession/player${otherPlayerNum}/customAudio`),
     callback: customAudioListener
+  });
+
+  // Listen for score updates from other player
+  const scoreUpdateListener = database.ref('gameSession/scoreUpdate').on('value', (snapshot) => {
+    if (!isLoggedIn) return;
+    const scoreData = snapshot.val();
+    if (scoreData && scoreData.timestamp) {
+      // Only update if this isn't our own score update
+      if (scoreData.timestamp > Date.now() - 1000) { // Within last second
+        // Update local data with synced data
+        if (!gameHistory[scoreData.gameType]) gameHistory[scoreData.gameType] = [];
+        
+        // Check if we already have this record to avoid duplicates
+        const existingRecord = gameHistory[scoreData.gameType].find(record => 
+          record.time === scoreData.gameRecord.time && 
+          record.date === scoreData.gameRecord.date
+        );
+        
+        if (!existingRecord) {
+          gameHistory[scoreData.gameType].unshift(scoreData.gameRecord);
+          if (gameHistory[scoreData.gameType].length > 10) {
+            gameHistory[scoreData.gameType] = gameHistory[scoreData.gameType].slice(0, 10);
+          }
+          globalScores = scoreData.globalScores;
+          updateGlobalScores();
+          if (currentGame === scoreData.gameType) {
+            loadGameHistory(currentGame);
+          }
+          saveData();
+        }
+        
+        // Clear the update after processing
+        setTimeout(() => {
+          database.ref('gameSession/scoreUpdate').remove();
+        }, 100);
+      }
+    }
+  });
+
+  window.firebaseListeners.push({
+    ref: database.ref('gameSession/scoreUpdate'),
+    callback: scoreUpdateListener
   });
 
   // Listen for sound effects
@@ -2455,6 +2503,21 @@ function recordWin(winner, score = null, gameSpecificData = null) {
   updateGlobalScores();
   loadGameHistory(currentGame);
   saveData();
+  
+  // NEW: Sync to other player
+  syncScoreUpdate(winner, currentGame, gameRecord);
+}
+
+function syncScoreUpdate(winner, gameType, gameRecord) {
+  if (myPlayerNumber) {
+    database.ref('gameSession/scoreUpdate').set({
+      winner: winner,
+      gameType: gameType,
+      gameRecord: gameRecord,
+      globalScores: globalScores,
+      timestamp: Date.now()
+    });
+  }
 }
 
 function updateGlobalScores() { updatePlayerNames(); }
@@ -2629,10 +2692,20 @@ function updateProfileDisplay(playerNumber, imageData) {
 }
 
 function loadProfilePictures() {
-  // Load from saved data first
+  // First try to load from localStorage (most persistent)
+  try {
+    const savedProfiles = localStorage.getItem('gameHubProfiles');
+    if (savedProfiles) {
+      profilePictures = { ...JSON.parse(savedProfiles) };
+    }
+  } catch (error) {
+    console.error('Failed to load profile pictures from localStorage:', error);
+  }
+  
+  // Then load from session data if available and merge
   if (window.gameData && window.gameData.profilePictures) {
-    profilePictures = { ...window.gameData.profilePictures };
-  } else {
+    profilePictures = { ...profilePictures, ...window.gameData.profilePictures };
+  } else if (!profilePictures) {
     profilePictures = { player1: null, player2: null };
   }
   
@@ -2644,13 +2717,22 @@ function loadProfilePictures() {
     }
   }
   
-  // After connecting to Firebase, also try to load from there
+  // After connecting to Firebase, sync current player's profile
   if (isLoggedIn && myPlayerNumber) {
+    // Upload our current profile if we have one
+    const myProfileData = profilePictures[`player${myPlayerNumber}`];
+    if (myProfileData) {
+      database.ref(`gameSession/player${myPlayerNumber}`).update({
+        profilePicture: myProfileData,
+        name: document.getElementById(`player${myPlayerNumber}Name`).value.toUpperCase()
+      });
+    }
+    
     // Load other player's profile from Firebase
     const otherPlayerNum = myPlayerNumber === 1 ? 2 : 1;
     database.ref(`gameSession/player${otherPlayerNum}/profilePicture`).once('value', (snapshot) => {
       const otherProfilePic = snapshot.val();
-      if (otherProfilePic) {
+      if (otherProfilePic && otherProfilePic !== profilePictures[`player${otherPlayerNum}`]) {
         updateProfileDisplay(otherPlayerNum, otherProfilePic);
         profilePictures[`player${otherPlayerNum}`] = otherProfilePic;
         saveData();
