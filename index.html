@@ -1585,24 +1585,24 @@ function connectToFirebase(playerNum) {
   const gameResultListener = database.ref('gameSession/gameResult').on('value', (snapshot) => {
     if (!isLoggedIn) return;
     const result = snapshot.val();
-    if (result && !gameResultHandled) {
+    if (result && !gameResultHandled && result.timestamp > (Date.now() - 5000)) {
       gameResultHandled = true;
+      console.log('Game result received:', result);
 
-      // Only record the win if we didn't already record it
-      if (result.recordedBy !== myPlayerNumber && result.winner !== 0) {
+      // Only record the win if we haven't already recorded it locally
+      if (!result.locallyRecorded) {
         recordWin(result.winner, result.score, result.gameSpecificData);
-      } else if (result.winner === 0) {
-        // For draws, only record once
-        if (result.recordedBy !== myPlayerNumber) {
-          recordWin(0, result.score, result.gameSpecificData);
-        }
+        // Mark as locally recorded to prevent duplicates
+        database.ref('gameSession/gameResult').update({ locallyRecorded: true });
       }
 
       setTimeout(() => {
         showGameResult(result.winner, result.message, result.score, result.gameSpecificData);
         // Clear the result after handling
-        database.ref('gameSession/gameResult').remove();
-        gameResultHandled = false;
+        setTimeout(() => {
+          database.ref('gameSession/gameResult').remove();
+          gameResultHandled = false;
+        }, 1000);
       }, 500);
     }
   });
@@ -2043,21 +2043,28 @@ async function playHornSound() {
 }
 
 function syncGameResult(winner, message, score = null, gameSpecificData = null) {
-  if (myPlayerNumber) {
-    // Only the winner's client records the win to prevent duplicates
-    if (winner === myPlayerNumber || winner === 0) {
-      recordWin(winner, score, gameSpecificData);
-    }
-    
-    database.ref('gameSession/gameResult').set({
-      winner: winner,
-      message: message,
-      score: score,
-      gameSpecificData: gameSpecificData,
-      recordedBy: myPlayerNumber, // Track who recorded it
-      timestamp: Date.now()
-    });
+  if (!myPlayerNumber || gameResultHandled) return;
+  
+  gameResultHandled = true;
+  
+  // Record win locally first
+  if (winner !== 0) {
+    recordWin(winner, score, gameSpecificData);
+  } else {
+    // For draws, record for both players
+    recordWin(0, score, gameSpecificData);
   }
+  
+  // Send to Firebase
+  database.ref('gameSession/gameResult').set({
+    winner: winner,
+    message: message,
+    score: score,
+    gameSpecificData: gameSpecificData,
+    recordedBy: myPlayerNumber,
+    locallyRecorded: true,
+    timestamp: Date.now()
+  });
 }
 
 // MOVE THESE OUTSIDE - they should be global functions
@@ -2405,7 +2412,7 @@ function startGame(gameType) {
     alert('WAITING FOR OTHER PLAYER TO CONNECT');
     return;
   }
-  
+  gameResultHandled = false;
   currentGame = gameType;
   currentPlayer = 1;
   gameState = {currentPlayer: 1};
@@ -2488,23 +2495,47 @@ function switchPlayer() {
 }
 
 function recordWin(winner, score = null, gameSpecificData = null) {
+  if (!currentGame) return;
+  
   if (!gameHistory[currentGame]) gameHistory[currentGame] = [];
+  
   const player1Name = (document.getElementById('player1Name').value || 'ELENA').toUpperCase();
   const player2Name = (document.getElementById('player2Name').value || 'BRYAN').toUpperCase();
-  const winnerName = winner === 1 ? player1Name : player2Name;
-  const gameRecord = {
-    winner: winnerName, date: new Date().toLocaleDateString(), 
-    time: new Date().toLocaleTimeString(), score: score, ...gameSpecificData
-  };
-  gameHistory[currentGame].unshift(gameRecord);
-  if (gameHistory[currentGame].length > 10) {
-    gameHistory[currentGame] = gameHistory[currentGame].slice(0, 10);
+  
+  let winnerName;
+  if (winner === 0) {
+    winnerName = 'DRAW';
+  } else {
+    winnerName = winner === 1 ? player1Name : player2Name;
+    // Only increment global scores for actual wins (not draws)
+    if (globalScores[`player${winner}`] !== undefined) {
+      globalScores[`player${winner}`]++;
+    }
   }
-  globalScores[`player${winner}`]++;
+  
+  const gameRecord = {
+    winner: winnerName,
+    date: new Date().toLocaleDateString(),
+    time: new Date().toLocaleTimeString(),
+    score: score,
+    ...gameSpecificData
+  };
+  
+  // Check for duplicate entries (same winner, similar timestamp)
+  const recentRecords = gameHistory[currentGame].filter(record => 
+    Math.abs(new Date(record.date + ' ' + record.time).getTime() - Date.now()) < 10000
+  );
+  
+  if (recentRecords.length === 0 || recentRecords[0].winner !== winnerName) {
+    gameHistory[currentGame].unshift(gameRecord);
+    if (gameHistory[currentGame].length > 10) {
+      gameHistory[currentGame] = gameHistory[currentGame].slice(0, 10);
+    }
+  }
+  
   updateGlobalScores();
   loadGameHistory(currentGame);
   saveData();
-  
 }
 
 
@@ -2968,10 +2999,22 @@ function dropPiece(col) {
     if (gameState.board[row][col] === 0) {
       gameState.board[row][col] = gameState.currentPlayer;
       updateConnect4Display();
+      syncGameState();
+      
       if (checkConnect4Win(row, col)) {
-        syncGameResult(gameState.currentPlayer, `PLAYER ${gameState.currentPlayer} VICTORY!`);
+        const player1Name = (document.getElementById('player1Name').value || 'ELENA').toUpperCase();
+        const player2Name = (document.getElementById('player2Name').value || 'BRYAN').toUpperCase();
+        const winnerName = gameState.currentPlayer === 1 ? player1Name : player2Name;
+        syncGameResult(gameState.currentPlayer, `${winnerName} CONNECTS 4!`);
         return;
       }
+      
+      // Check for draw
+      if (gameState.board.every(row => row.every(cell => cell !== 0))) {
+        syncGameResult(0, "BOARD FULL - DRAW GAME");
+        return;
+      }
+      
       gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
       currentPlayer = gameState.currentPlayer;
       syncGameState();
