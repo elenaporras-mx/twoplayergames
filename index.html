@@ -1269,6 +1269,7 @@ function restartGame() {
   if (!currentGame) return;
   
   // Reset game state and reinitialize current game
+  gameResultHandled = false;
   currentPlayer = 1;
   gameState = { currentPlayer: 1 }; 
   updatePlayerNames();
@@ -1424,6 +1425,54 @@ function connectToFirebase(playerNum) {
   window.firebaseListeners.push({
     ref: database.ref('gameSession/currentPlayer'),
     callback: currentPlayerListener
+  });
+
+  // Listen for game history updates
+  const gameHistoryListener = database.ref('gameSession/gameHistory').on('value', (snapshot) => {
+    if (!isLoggedIn) return;
+    const historyData = snapshot.val();
+    
+    if (historyData && historyData.timestamp > (Date.now() - 30000)) {
+      // Merge the received history with local history
+      if (historyData.history) {
+        Object.keys(historyData.history).forEach(gameType => {
+          if (!gameHistory[gameType]) gameHistory[gameType] = [];
+          
+          // Merge histories, avoiding duplicates based on timestamp
+          historyData.history[gameType].forEach(record => {
+            const exists = gameHistory[gameType].some(existingRecord => 
+              Math.abs((existingRecord.timestamp || 0) - (record.timestamp || 0)) < 5000
+            );
+            if (!exists) {
+              gameHistory[gameType].unshift(record);
+            }
+          });
+          
+          // Keep only the latest 10 records
+          gameHistory[gameType] = gameHistory[gameType]
+            .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+            .slice(0, 10);
+        });
+      }
+      
+      // Update global scores from Firebase
+      if (historyData.globalScores) {
+        globalScores = { ...globalScores, ...historyData.globalScores };
+        updateGlobalScores();
+      }
+      
+      // Update current game history display if in a game
+      if (currentGame) {
+        loadGameHistory(currentGame);
+      }
+      
+      saveData();
+    }
+  });
+
+  window.firebaseListeners.push({
+    ref: database.ref('gameSession/gameHistory'),
+    callback: gameHistoryListener
   });
 
   // Listen for chat messages
@@ -1590,19 +1639,17 @@ function connectToFirebase(playerNum) {
       console.log('Game result received:', result);
 
       // Only record the win if we haven't already recorded it locally
-      if (!result.locallyRecorded) {
-        recordWin(result.winner, result.score, result.gameSpecificData);
-        // Mark as locally recorded to prevent duplicates
-        database.ref('gameSession/gameResult').update({ locallyRecorded: true });
-      }
+      recordWin(result.winner, result.score, result.gameSpecificData);
+
 
       setTimeout(() => {
         showGameResult(result.winner, result.message, result.score, result.gameSpecificData);
         // Clear the result after handling
-        setTimeout(() => {
-          database.ref('gameSession/gameResult').remove();
-          gameResultHandled = false;
-        }, 1000);
+        if (result.recordedBy === myPlayerNumber) {
+          setTimeout(() => {
+            database.ref('gameSession/gameResult').remove();
+          }, 1000);
+        }
       }, 500);
     }
   });
@@ -2031,7 +2078,7 @@ async function playHornSound() {
         
         const currentTime = window.audioContext.currentTime;
         gainNode.gain.setValueAtTime(soundVolume * 0.4, currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + durations[index]);
+        gainNode.gain.exponentialRampToValueAtsyncGTime(0.01, currentTime + durations[index]);
         
         oscillator.start(currentTime);
         oscillator.stop(currentTime + durations[index]);
@@ -2047,14 +2094,15 @@ function syncGameResult(winner, message, score = null, gameSpecificData = null) 
   
   gameResultHandled = true;
   
-  // Record win locally first
+  /**
   if (winner !== 0) {
     recordWin(winner, score, gameSpecificData);
   } else {
     // For draws, record for both players
     recordWin(0, score, gameSpecificData);
   }
-  
+  **/ 
+
   // Send to Firebase
   database.ref('gameSession/gameResult').set({
     winner: winner,
@@ -2518,6 +2566,7 @@ function recordWin(winner, score = null, gameSpecificData = null) {
     date: new Date().toLocaleDateString(),
     time: new Date().toLocaleTimeString(),
     score: score,
+    timestamp: Date.now(),
     ...gameSpecificData
   };
   
@@ -2531,7 +2580,15 @@ function recordWin(winner, score = null, gameSpecificData = null) {
     if (gameHistory[currentGame].length > 10) {
       gameHistory[currentGame] = gameHistory[currentGame].slice(0, 10);
     }
+    // Sync to Firebase for sharing between players
+    if (myPlayerNumber) {
+      database.ref('gameSession/gameHistory').set({
+        history: gameHistory,
+        globalScores: globalScores,
+        timestamp: Date.now()
+      });
   }
+}
   
   updateGlobalScores();
   loadGameHistory(currentGame);
@@ -2681,6 +2738,20 @@ function handleProfileUpload(playerNumber, event) {
     
     // Update local display
     updateProfileDisplay(playerNumber, imageData);
+
+    // Save to profilePictures object and localStorage
+    if (!profilePictures) profilePictures = { player1: null, player2: null };
+    profilePictures[`player${playerNumber}`] = imageData;
+
+    // Save to localStorage for persistence
+    try {
+      localStorage.setItem('gameHubProfiles', JSON.stringify(profilePictures));
+    } catch (error) {
+      console.error('Failed to save profile pictures:', error);
+    }
+
+    // Save to session data as well
+    saveData();
     
     // Show success message
     const successDiv = document.createElement('div');
@@ -2711,6 +2782,17 @@ function updateProfileDisplay(playerNumber, imageData) {
 }
 
 function loadProfilePictures() {
+
+  // Load from localStorage first (most persistent)
+  try {
+    const saved = localStorage.getItem('gameHubProfiles');
+    if (saved) {
+      profilePictures = JSON.parse(saved);
+    }
+  } catch (error) {
+    console.error('Failed to load profile pictures from localStorage:', error);
+    profilePictures = { player1: null, player2: null };
+  }
   
   // Then load from session data if available and merge
   if (window.gameData && window.gameData.profilePictures) {
@@ -2746,6 +2828,13 @@ function loadProfilePictures() {
         updateProfileDisplay(otherPlayerNum, otherProfilePic);
         profilePictures[`player${otherPlayerNum}`] = otherProfilePic;
         saveData();
+
+      // Also save to localStorage
+      try {
+          localStorage.setItem('gameHubProfiles', JSON.stringify(profilePictures));
+        } catch (error) {
+          console.error('Failed to save profile pictures:', error);
+        }
       }
     });
   }
@@ -2863,6 +2952,7 @@ window.cancelReset = cancelReset;
 
 // Result screen triggers 
 function showGameResult(winner, message, score = null, gameSpecificData = null) {
+  console.log('Showing game result:', { winner, message, score });
   // Determine if current player won, lost, or drew
   let screenType, title, resultMessage;
   
