@@ -1534,11 +1534,34 @@ function connectToFirebase(playerNum) {
     callback: customAudioListener
   });
 
+  const scoreUpdateListener = database.ref('gameSession/scoreUpdate').on('value', (snapshot) => {
+    if (!isLoggedIn) return;
+    const scoreData = snapshot.val();
+    if (scoreData && scoreData.timestamp) {
+      // Update global scores when other player scores
+      if (scoreData.player !== myPlayerNumber) {
+        globalScores[`player${scoreData.player}`] = scoreData.newScore;
+        updateGlobalScores();
+        
+        // Show notification
+        const playerName = scoreData.player === 1 ? 
+          (document.getElementById('player1Name').value || 'ELENA').toUpperCase() : 
+          (document.getElementById('player2Name').value || 'BRYAN').toUpperCase();
+        showTemporaryNotification(`${playerName} SCORED!`, '#ffff00', 2000);
+      }
+      
+      // Clear the update after processing
+      setTimeout(() => {
+        database.ref('gameSession/scoreUpdate').remove();
+      }, 100);
+    }
+  });
 
   window.firebaseListeners.push({
     ref: database.ref('gameSession/scoreUpdate'),
     callback: scoreUpdateListener
   });
+  
 
   // Listen for sound effects
   const soundEffectListener = database.ref('gameSession/soundEffect').on('value', (snapshot) => {
@@ -2016,8 +2039,7 @@ async function playWompSound() {
 
 async function playHornSound() {
   try {
-    // Three ascending notes: do-do-doo
-    const notes = [523, 523, 659]; // C5, C5, E5
+    const notes = [523, 523, 659];
     const durations = [0.2, 0.2, 0.4];
     
     notes.forEach((frequency, index) => {
@@ -2033,7 +2055,7 @@ async function playHornSound() {
         
         const currentTime = window.audioContext.currentTime;
         gainNode.gain.setValueAtTime(soundVolume * 0.4, currentTime);
-        gainNode.gain.exponentialRampToValueAtsyncGTime(0.01, currentTime + durations[index]);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + durations[index]); // ← FIXED
         
         oscillator.start(currentTime);
         oscillator.stop(currentTime + durations[index]);
@@ -2998,10 +3020,16 @@ function dropPiece(col) {
     if (gameState.board[row][col] === 0) {
       gameState.board[row][col] = gameState.currentPlayer;
       updateConnect4Display();
+      
+      // Always sync the game state first
+      syncGameState();
+      
       if (checkConnect4Win(row, col)) {
+        // Sync the winning result
         syncGameResult(gameState.currentPlayer, `PLAYER ${gameState.currentPlayer} VICTORY!`);
         return;
       }
+      
       gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
       currentPlayer = gameState.currentPlayer;
       syncGameState();
