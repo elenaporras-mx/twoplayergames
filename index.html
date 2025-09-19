@@ -1377,6 +1377,26 @@ function connectToFirebase(playerNum) {
     callback: otherPlayerListener
   });
 
+  // Listen for admin reset commands
+  const adminResetListener = database.ref('gameSession/adminReset').on('value', (snapshot) => {
+    if (!isLoggedIn) return;
+    const resetData = snapshot.val();
+    if (resetData && resetData.resetBy !== myPlayerNumber) {
+      // Another player triggered reset
+      performReset();
+      
+      // Clear the reset command
+      setTimeout(() => {
+        database.ref('gameSession/adminReset').remove();
+      }, 100);
+    }
+  });
+
+  window.firebaseListeners.push({
+    ref: database.ref('gameSession/adminReset'),
+    callback: adminResetListener
+  });
+
   // Listen for game state changes
   const gameStateListener = database.ref('gameSession/gameState').on('value', (snapshot) => {
     if (!isLoggedIn) return;
@@ -1518,42 +1538,6 @@ function connectToFirebase(playerNum) {
     callback: customAudioListener
   });
 
-  // Listen for score updates from other player
-  const scoreUpdateListener = database.ref('gameSession/scoreUpdate').on('value', (snapshot) => {
-    if (!isLoggedIn) return;
-    const scoreData = snapshot.val();
-    if (scoreData && scoreData.timestamp) {
-      // Only update if this isn't our own score update
-      if (scoreData.timestamp > Date.now() - 1000) { // Within last second
-        // Update local data with synced data
-        if (!gameHistory[scoreData.gameType]) gameHistory[scoreData.gameType] = [];
-        
-        // Check if we already have this record to avoid duplicates
-        const existingRecord = gameHistory[scoreData.gameType].find(record => 
-          record.time === scoreData.gameRecord.time && 
-          record.date === scoreData.gameRecord.date
-        );
-        
-        if (!existingRecord) {
-          gameHistory[scoreData.gameType].unshift(scoreData.gameRecord);
-          if (gameHistory[scoreData.gameType].length > 10) {
-            gameHistory[scoreData.gameType] = gameHistory[scoreData.gameType].slice(0, 10);
-          }
-          globalScores = scoreData.globalScores;
-          updateGlobalScores();
-          if (currentGame === scoreData.gameType) {
-            loadGameHistory(currentGame);
-          }
-          saveData();
-        }
-        
-        // Clear the update after processing
-        setTimeout(() => {
-          database.ref('gameSession/scoreUpdate').remove();
-        }, 100);
-      }
-    }
-  });
 
   window.firebaseListeners.push({
     ref: database.ref('gameSession/scoreUpdate'),
@@ -1603,6 +1587,17 @@ function connectToFirebase(playerNum) {
     const result = snapshot.val();
     if (result && !gameResultHandled) {
       gameResultHandled = true;
+
+      // Only record the win if we didn't already record it
+      if (result.recordedBy !== myPlayerNumber && result.winner !== 0) {
+        recordWin(result.winner, result.score, result.gameSpecificData);
+      } else if (result.winner === 0) {
+        // For draws, only record once
+        if (result.recordedBy !== myPlayerNumber) {
+          recordWin(0, result.score, result.gameSpecificData);
+        }
+      }
+
       setTimeout(() => {
         showGameResult(result.winner, result.message, result.score, result.gameSpecificData);
         // Clear the result after handling
@@ -2049,11 +2044,17 @@ async function playHornSound() {
 
 function syncGameResult(winner, message, score = null, gameSpecificData = null) {
   if (myPlayerNumber) {
+    // Only the winner's client records the win to prevent duplicates
+    if (winner === myPlayerNumber || winner === 0) {
+      recordWin(winner, score, gameSpecificData);
+    }
+    
     database.ref('gameSession/gameResult').set({
       winner: winner,
       message: message,
       score: score,
       gameSpecificData: gameSpecificData,
+      recordedBy: myPlayerNumber, // Track who recorded it
       timestamp: Date.now()
     });
   }
@@ -2504,21 +2505,8 @@ function recordWin(winner, score = null, gameSpecificData = null) {
   loadGameHistory(currentGame);
   saveData();
   
-  // NEW: Sync to other player
-  syncScoreUpdate(winner, currentGame, gameRecord);
 }
 
-function syncScoreUpdate(winner, gameType, gameRecord) {
-  if (myPlayerNumber) {
-    database.ref('gameSession/scoreUpdate').set({
-      winner: winner,
-      gameType: gameType,
-      gameRecord: gameRecord,
-      globalScores: globalScores,
-      timestamp: Date.now()
-    });
-  }
-}
 
 function updateGlobalScores() { updatePlayerNames(); }
 
@@ -2692,15 +2680,6 @@ function updateProfileDisplay(playerNumber, imageData) {
 }
 
 function loadProfilePictures() {
-  // First try to load from localStorage (most persistent)
-  try {
-    const savedProfiles = localStorage.getItem('gameHubProfiles');
-    if (savedProfiles) {
-      profilePictures = { ...JSON.parse(savedProfiles) };
-    }
-  } catch (error) {
-    console.error('Failed to load profile pictures from localStorage:', error);
-  }
   
   // Then load from session data if available and merge
   if (window.gameData && window.gameData.profilePictures) {
@@ -2790,6 +2769,19 @@ function confirmScoreboardReset() {
 }
 
 function executeReset() {
+  // Sync reset command to Firebase first
+  if (myPlayerNumber) {
+    database.ref('gameSession/adminReset').set({
+      timestamp: Date.now(),
+      resetBy: myPlayerNumber
+    });
+  }
+  
+  // Perform local reset
+  performReset();
+}
+
+function performReset() {
   // Reset all game data
   globalScores = { player1: 0, player2: 0 };
   gameHistory = {};
