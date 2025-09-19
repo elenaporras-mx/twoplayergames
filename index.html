@@ -767,7 +767,7 @@ body::before {
 }
 
 /* INPUT STYLES */
-.word-input, .anagram-input, .wordchain-input, .math-input, .message-input {
+.word-input, .anagram-input, .wordchain-input, .math-input {
   width: 100%;
   padding: 15px;
   margin-bottom: 15px;
@@ -1478,6 +1478,36 @@ function connectToFirebase(playerNum) {
     }
   });
 
+  // Listen for other player's custom audio uploads
+  const customAudioListener = database.ref(`gameSession/player${otherPlayerNum}/customAudio`).on('value', (snapshot) => {
+    if (!isLoggedIn) return;
+    const otherPlayerAudio = snapshot.val();
+    
+    if (otherPlayerAudio) {
+      Object.keys(otherPlayerAudio).forEach(soundName => {
+        const audioInfo = otherPlayerAudio[soundName];
+        
+        // Only add if we don't already have this sound
+        if (!uploadedAudio[soundName]) {
+          uploadedAudio[soundName] = audioInfo.audioData;
+          addCustomSoundButton(soundName);
+          saveUploadedAudio();
+          
+          // Show notification that other player shared audio
+          const otherPlayerName = otherPlayerNum === 1 ? 
+            (document.getElementById('player1Name').value || 'ELENA').toUpperCase() : 
+            (document.getElementById('player2Name').value || 'BRYAN').toUpperCase();
+          showTemporaryNotification(`${otherPlayerName} SHARED: ${soundName}`, '#00ffff', 3000);
+        }
+      });
+    }
+  });
+
+  window.firebaseListeners.push({
+    ref: database.ref(`gameSession/player${otherPlayerNum}/customAudio`),
+    callback: customAudioListener
+  });
+
   // Listen for sound effects
   const soundEffectListener = database.ref('gameSession/soundEffect').on('value', (snapshot) => {
     if (!isLoggedIn) return;
@@ -1620,7 +1650,15 @@ function handleAudioUpload(event) {
       
       // Save to localStorage for persistence
       saveUploadedAudio();
-      
+
+      //sync to firebase
+      if (myPlayerNumber) {
+        database.ref(`gameSession/player${myPlayerNumber}/customAudio/${fileName}`).set({
+          audioData: audioData,
+          uploadedAt: Date.now()
+        });
+      }
+
       // Show success message
       showTemporaryNotification(`AUDIO UPLOADED: ${fileName}`, '#00ff00', 2000);
     };
@@ -1659,7 +1697,12 @@ function removeCustomSound(soundName, event) {
     // Remove from storage
     delete uploadedAudio[soundName];
     saveUploadedAudio();
-    
+
+    // Remove from Firebase
+    if (myPlayerNumber) {
+      database.ref(`gameSession/player${myPlayerNumber}/customAudio/${soundName}`).remove();
+    }
+
     // Remove button from UI
     const button = document.getElementById(`custom-${soundName}`);
     if (button) button.remove();
